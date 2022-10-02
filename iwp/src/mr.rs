@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use image::Luma;
 
 pub enum ConnTypes {
@@ -69,16 +71,18 @@ fn update_pixel(
 pub fn get_initial_pixels(
     mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
     marker: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
-) -> Vec<(u32, u32)> {
+) -> HashSet<(u32, u32)> {
     let width = mask.width();
     let height = mask.height();
-    let mut queue = Vec::new();
+    let mut queue = HashSet::new();
 
     for i in 0..height {
         for j in 0..width {
             update_pixel((j, i), mask, marker);
         }
     }
+
+    println!("{:?}", marker);
 
     for i in (0..height).rev() {
         for j in (0..width).rev() {
@@ -96,7 +100,7 @@ pub fn get_initial_pixels(
                 let ngb = marker.get_pixel(ngb_coord.0, ngb_coord.1);
 
                 if (ngb.0[0] < pixel_value) && (ngb.0[0] < pixel_mask.0[0]) {
-                    queue.push(ngb_coord);
+                    queue.insert(ngb_coord);
                 }
             }
         }
@@ -108,6 +112,7 @@ pub fn get_initial_pixels(
 mod tests {
     use image::{GrayImage, ImageBuffer};
 
+    use crate::format::*;
     use crate::mr::*;
 
     fn gen_zero_image(width: u32, height: u32) -> ImageBuffer<Luma<u8>, Vec<u8>> {
@@ -180,8 +185,10 @@ mod tests {
         let mut marker = gen_zero_image(6, 6);
         marker.put_pixel(4, 4, Luma([1]));
 
+        print_image_by_row(&marker);
+
         let initial = get_initial_pixels(&mask, &mut marker);
-        println!("{:?}", initial);
+        print_image_by_row(&marker);
         panic!("UHUL")
     }
 }
