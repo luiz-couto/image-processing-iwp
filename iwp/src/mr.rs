@@ -186,8 +186,11 @@ mod tests {
 
         print_image_by_row(&marker);
 
-        let initial = get_initial_pixels(&mask, &mut marker).sort();
-        let expected = vec![(1, 1), (2, 1), (2, 2), (1, 2)].sort();
+        let mut initial = get_initial_pixels(&mask, &mut marker);
+        let mut expected = vec![(1, 1), (2, 1), (2, 2), (1, 2)];
+
+        initial.sort();
+        expected.sort();
 
         assert_eq!(initial, expected);
     }
