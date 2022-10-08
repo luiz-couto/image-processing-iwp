@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use crate::format;
 use image::Luma;
 
 pub enum ConnTypes {
@@ -71,7 +72,7 @@ fn update_pixel(
 pub fn get_initial_pixels(
     mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
     marker: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
-) -> HashSet<(u32, u32)> {
+) -> Vec<(u32, u32)> {
     let width = mask.width();
     let height = mask.height();
     let mut queue = HashSet::new();
@@ -82,30 +83,28 @@ pub fn get_initial_pixels(
         }
     }
 
-    println!("{:?}", marker);
-
     for i in (0..height).rev() {
         for j in (0..width).rev() {
             let pixel_coords = (j, i);
 
             update_pixel((j, i), mask, marker);
             let pixel_marker = marker.get_pixel(pixel_coords.0, pixel_coords.1);
-            let pixel_mask = mask.get_pixel(pixel_coords.0, pixel_coords.1);
-
             let pixel_value = pixel_marker.0[0];
 
             let pixel_ngbs = get_pixel_neighbours(marker, pixel_coords, ConnTypes::Eight);
 
             for ngb_coord in pixel_ngbs {
                 let ngb = marker.get_pixel(ngb_coord.0, ngb_coord.1);
+                let ngb_mask = mask.get_pixel(ngb_coord.0, ngb_coord.1);
 
-                if (ngb.0[0] < pixel_value) && (ngb.0[0] < pixel_mask.0[0]) {
+                if (ngb.0[0] < pixel_value) && (ngb.0[0] < ngb_mask.0[0]) {
                     queue.insert(ngb_coord);
                 }
             }
         }
     }
 
+    let queue = Vec::from_iter(queue); //check complexity of this operation later
     return queue;
 }
 
@@ -187,8 +186,9 @@ mod tests {
 
         print_image_by_row(&marker);
 
-        let initial = get_initial_pixels(&mask, &mut marker);
-        print_image_by_row(&marker);
-        panic!("UHUL")
+        let initial = get_initial_pixels(&mask, &mut marker).sort();
+        let expected = vec![(1, 1), (2, 1), (2, 2), (1, 2)].sort();
+
+        assert_eq!(initial, expected);
     }
 }

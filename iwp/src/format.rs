@@ -8,4 +8,5 @@ pub fn print_image_by_row(img: &image::ImageBuffer<Luma<u8>, Vec<u8>>) {
         }
         print!("]\n");
     }
+    println!();
 }
