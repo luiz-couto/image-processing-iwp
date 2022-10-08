@@ -108,6 +108,29 @@ pub fn get_initial_pixels(
     return queue;
 }
 
+pub fn propagation_phase(
+    mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+    marker: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
+    queue: &mut Vec<(u32, u32)>,
+) {
+    while queue.len() != 0 {
+        let pixel_coords = queue.remove(0); // change this method to a more efficent one
+
+        let pixel_ngbs = get_pixel_neighbours(marker, pixel_coords, ConnTypes::Eight);
+        let pixel = *marker.get_pixel(pixel_coords.0, pixel_coords.1);
+
+        for ngb_coord in pixel_ngbs {
+            let mut ngb = marker.get_pixel_mut(ngb_coord.0, ngb_coord.1);
+            let mask_ngb = mask.get_pixel(ngb_coord.0, ngb_coord.1);
+
+            if (ngb.0[0] < pixel.0[0]) && (mask_ngb.0[0] != ngb.0[0]) {
+                ngb.0[0] = std::cmp::min(pixel.0[0], mask_ngb.0[0]);
+                queue.push(ngb_coord);
+            }
+        }
+    }
+}
+
 mod tests {
     use image::{GrayImage, ImageBuffer};
 
@@ -184,8 +207,6 @@ mod tests {
         let mut marker = gen_zero_image(6, 6);
         marker.put_pixel(4, 4, Luma([1]));
 
-        print_image_by_row(&marker);
-
         let mut initial = get_initial_pixels(&mask, &mut marker);
         let mut expected = vec![(1, 1), (2, 1), (2, 2), (1, 2)];
 
@@ -193,5 +214,19 @@ mod tests {
         expected.sort();
 
         assert_eq!(initial, expected);
+    }
+
+    #[test]
+    fn test_propagation_phase() {
+        let mask = gen_example_img();
+
+        let mut marker = gen_zero_image(6, 6);
+        marker.put_pixel(4, 4, Luma([1]));
+
+        let mut initial = get_initial_pixels(&mask, &mut marker);
+
+        propagation_phase(&mask, &mut marker, &mut initial);
+
+        print_image_by_row(&marker);
     }
 }
