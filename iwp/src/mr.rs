@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::format;
+use crate::{format, iwp};
 use image::Luma;
 
 pub enum ConnTypes {
@@ -8,7 +8,7 @@ pub enum ConnTypes {
     Eight = 8,
 }
 
-fn get_pixel_neighbours(
+pub fn get_pixel_neighbours(
     img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
     coords: (u32, u32),
     conn: ConnTypes,
@@ -108,7 +108,7 @@ pub fn get_initial_pixels(
     return queue;
 }
 
-pub fn propagation_phase(
+pub fn propagation_phase_1(
     mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
     marker: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
     queue: &mut Vec<(u32, u32)>,
@@ -129,6 +129,43 @@ pub fn propagation_phase(
             }
         }
     }
+}
+
+pub fn propagation_phase_2(
+    mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+    marker: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
+    queue: &mut Vec<(u32, u32)>,
+) {
+    iwp::iwp(marker, propagation_condition, update_func, queue, mask);
+}
+
+pub fn propagation_condition(
+    marker: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+    curr_pixel_coords: (u32, u32), // maybe transform those in a struct containing the coords and the reference to the pixel itself (or the pixel value)
+    ngb_pixel_coords: (u32, u32),
+    mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+) -> bool {
+    let pixel = marker.get_pixel(curr_pixel_coords.0, curr_pixel_coords.1);
+    let ngb = marker.get_pixel(ngb_pixel_coords.0, ngb_pixel_coords.1);
+    let mask_ngb = mask.get_pixel(ngb_pixel_coords.0, ngb_pixel_coords.1);
+
+    if (ngb.0[0] < pixel.0[0]) && (mask_ngb.0[0] != ngb.0[0]) {
+        return true;
+    }
+
+    return false;
+}
+
+pub fn update_func(
+    marker: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+    curr_pixel_coords: (u32, u32),
+    ngb_pixel_coords: (u32, u32),
+    mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+) -> u8 {
+    let pixel = marker.get_pixel(curr_pixel_coords.0, curr_pixel_coords.1);
+    let mask_ngb = mask.get_pixel(ngb_pixel_coords.0, ngb_pixel_coords.1);
+
+    return std::cmp::min(pixel.0[0], mask_ngb.0[0]);
 }
 
 mod tests {
@@ -225,7 +262,7 @@ mod tests {
 
         let mut initial = get_initial_pixels(&mask, &mut marker);
 
-        propagation_phase(&mask, &mut marker, &mut initial);
+        propagation_phase_1(&mask, &mut marker, &mut initial);
 
         print_image_by_row(&marker);
     }

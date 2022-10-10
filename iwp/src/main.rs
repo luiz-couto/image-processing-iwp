@@ -3,6 +3,7 @@ use image::io::Reader as ImageReader;
 use std::error::Error;
 
 mod format;
+mod iwp;
 mod mr;
 
 fn main() -> Result<(), Box<dyn Error>> {
