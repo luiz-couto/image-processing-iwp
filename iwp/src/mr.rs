@@ -108,37 +108,6 @@ pub fn get_initial_pixels(
     return queue;
 }
 
-pub fn propagation_phase_1(
-    mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
-    marker: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
-    queue: &mut Vec<(u32, u32)>,
-) {
-    while queue.len() != 0 {
-        let pixel_coords = queue.remove(0); // change this method to a more efficent one
-
-        let pixel_ngbs = get_pixel_neighbours(marker, pixel_coords, ConnTypes::Eight);
-        let pixel = *marker.get_pixel(pixel_coords.0, pixel_coords.1);
-
-        for ngb_coord in pixel_ngbs {
-            let mut ngb = marker.get_pixel_mut(ngb_coord.0, ngb_coord.1);
-            let mask_ngb = mask.get_pixel(ngb_coord.0, ngb_coord.1);
-
-            if (ngb.0[0] < pixel.0[0]) && (mask_ngb.0[0] != ngb.0[0]) {
-                ngb.0[0] = std::cmp::min(pixel.0[0], mask_ngb.0[0]);
-                queue.push(ngb_coord);
-            }
-        }
-    }
-}
-
-pub fn propagation_phase_2(
-    mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
-    marker: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
-    queue: &mut Vec<(u32, u32)>,
-) {
-    iwp::iwp(marker, propagation_condition, update_func, queue, mask);
-}
-
 pub fn propagation_condition(
     marker: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
     curr_pixel_coords: (u32, u32), // maybe transform those in a struct containing the coords and the reference to the pixel itself (or the pixel value)
@@ -172,13 +141,14 @@ mod tests {
     use image::{GrayImage, ImageBuffer};
 
     use crate::format::*;
+    use crate::iwp;
     use crate::mr::*;
 
-    fn gen_zero_image(width: u32, height: u32) -> ImageBuffer<Luma<u8>, Vec<u8>> {
+    fn _gen_same_value_image(width: u32, height: u32, value: u8) -> ImageBuffer<Luma<u8>, Vec<u8>> {
         let mut img = GrayImage::new(width, height);
         for i in 0..width {
             for j in 0..height {
-                img.put_pixel(i, j, Luma([0]))
+                img.put_pixel(i, j, Luma([value]))
             }
         }
 
@@ -194,8 +164,8 @@ mod tests {
     0 0 0 1 1 0
     0 0 0 0 0 0
     */
-    fn gen_example_img() -> ImageBuffer<Luma<u8>, Vec<u8>> {
-        let mut img = gen_zero_image(6, 6);
+    fn _gen_example_img() -> ImageBuffer<Luma<u8>, Vec<u8>> {
+        let mut img = _gen_same_value_image(6, 6, 0);
 
         img.put_pixel(1, 1, Luma([1]));
         img.put_pixel(1, 2, Luma([1]));
@@ -209,9 +179,126 @@ mod tests {
         return img;
     }
 
+    /*
+    Gens the 10 x 10 image below
+    08 08 08 08 08 08 08 08 08 08
+    08 12 12 12 08 08 09 08 09 08
+    08 12 12 12 08 08 08 09 08 08
+    08 12 12 12 08 08 09 08 09 08
+    08 08 08 08 08 08 08 08 08 08
+    08 09 08 08 08 16 16 16 08 08
+    08 08 08 09 08 16 16 16 08 08
+    08 08 09 08 08 16 16 16 08 08
+    08 09 08 09 08 08 08 08 08 08
+    08 08 08 08 08 08 09 08 08 08
+    */
+    fn _gen_big_marker_img() -> ImageBuffer<Luma<u8>, Vec<u8>> {
+        let mut base_img = _gen_same_value_image(10, 10, 8);
+
+        for i in 1..4 {
+            for j in 1..4 {
+                base_img.put_pixel(i, j, Luma([12]));
+            }
+        }
+
+        for i in 5..8 {
+            for j in 5..8 {
+                base_img.put_pixel(i, j, Luma([16]));
+            }
+        }
+
+        base_img.put_pixel(1, 5, Luma([9]));
+        base_img.put_pixel(1, 8, Luma([9]));
+        base_img.put_pixel(2, 7, Luma([9]));
+        base_img.put_pixel(3, 6, Luma([9]));
+        base_img.put_pixel(3, 8, Luma([9]));
+        base_img.put_pixel(6, 1, Luma([9]));
+        base_img.put_pixel(6, 3, Luma([9]));
+        base_img.put_pixel(6, 9, Luma([9]));
+        base_img.put_pixel(7, 2, Luma([9]));
+        base_img.put_pixel(8, 1, Luma([9]));
+        base_img.put_pixel(8, 3, Luma([9]));
+
+        return base_img;
+    }
+
+    /*
+    Gens the 10 x 10 image below
+    10 10 10 10 10 10 10 10 10 10
+    10 14 14 14 10 10 11 10 11 10
+    10 14 14 14 10 10 10 11 10 10
+    10 14 14 14 10 10 11 10 11 10
+    10 10 10 10 10 10 10 10 10 10
+    10 11 10 10 10 16 16 16 10 10
+    10 10 10 11 10 16 16 16 10 10
+    10 10 11 10 10 16 16 16 10 10
+    10 11 10 11 10 10 10 10 10 10
+    10 10 10 10 10 10 11 10 10 10
+    */
+    fn _gen_big_mask_img() -> ImageBuffer<Luma<u8>, Vec<u8>> {
+        let mut base_img = _gen_same_value_image(10, 10, 10);
+
+        for i in 1..4 {
+            for j in 1..4 {
+                base_img.put_pixel(i, j, Luma([14]));
+            }
+        }
+
+        for i in 5..8 {
+            for j in 5..8 {
+                base_img.put_pixel(i, j, Luma([18]));
+            }
+        }
+
+        base_img.put_pixel(1, 5, Luma([11]));
+        base_img.put_pixel(1, 8, Luma([11]));
+        base_img.put_pixel(2, 7, Luma([11]));
+        base_img.put_pixel(3, 6, Luma([11]));
+        base_img.put_pixel(3, 8, Luma([11]));
+        base_img.put_pixel(6, 1, Luma([11]));
+        base_img.put_pixel(6, 3, Luma([11]));
+        base_img.put_pixel(6, 9, Luma([11]));
+        base_img.put_pixel(7, 2, Luma([11]));
+        base_img.put_pixel(8, 1, Luma([11]));
+        base_img.put_pixel(8, 3, Luma([11]));
+
+        return base_img;
+    }
+
+    /*
+    Gens the 10 x 10 image below
+    10 10 10 10 10 10 10 10 10 10
+    10 12 12 12 10 10 10 10 10 10
+    10 12 12 12 10 10 10 10 10 10
+    10 12 12 12 10 10 10 10 10 10
+    10 10 10 10 10 10 10 10 10 10
+    10 10 10 10 10 16 16 16 10 10
+    10 10 10 10 10 16 16 16 10 10
+    10 10 10 10 10 16 16 16 10 10
+    10 10 10 10 10 10 10 10 10 10
+    10 10 10 10 10 10 10 10 10 10
+    */
+    fn _gen_expected_img() -> ImageBuffer<Luma<u8>, Vec<u8>> {
+        let mut base_img = _gen_same_value_image(10, 10, 10);
+
+        for i in 1..4 {
+            for j in 1..4 {
+                base_img.put_pixel(i, j, Luma([12]));
+            }
+        }
+
+        for i in 5..8 {
+            for j in 5..8 {
+                base_img.put_pixel(i, j, Luma([16]));
+            }
+        }
+
+        return base_img;
+    }
+
     #[test]
     fn test_get_pixel_neighbours() {
-        let mask = gen_example_img();
+        let mask = _gen_example_img();
         let ngbs = get_pixel_neighbours(&mask, (0, 0), ConnTypes::Eight);
         let expected = vec![(0, 1), (1, 0), (1, 1)];
 
@@ -239,9 +326,9 @@ mod tests {
 
     #[test]
     fn test_get_initial_pixels() {
-        let mask = gen_example_img();
+        let mask = _gen_example_img();
 
-        let mut marker = gen_zero_image(6, 6);
+        let mut marker = _gen_same_value_image(6, 6, 0);
         marker.put_pixel(4, 4, Luma([1]));
 
         let mut initial = get_initial_pixels(&mask, &mut marker);
@@ -255,15 +342,28 @@ mod tests {
 
     #[test]
     fn test_propagation_phase() {
-        let mask = gen_example_img();
+        let mask = _gen_big_mask_img();
+        let mut marker = _gen_big_marker_img();
 
-        let mut marker = gen_zero_image(6, 6);
-        marker.put_pixel(4, 4, Luma([1]));
+        // did not use the get_initial_pixels function here because it does all the job
+        let mut initial: Vec<(u32, u32)> = Vec::new();
+        for i in 0..10 {
+            for j in 0..10 {
+                let pixel = marker.get_pixel(i, j);
+                if pixel.0[0] != 8 {
+                    initial.push((i, j));
+                }
+            }
+        }
 
-        let mut initial = get_initial_pixels(&mask, &mut marker);
+        iwp::iwp(
+            &mut marker,
+            propagation_condition,
+            update_func,
+            &mut initial,
+            &mask,
+        );
 
-        propagation_phase_1(&mask, &mut marker, &mut initial);
-
-        print_image_by_row(&marker);
+        assert_eq!(marker, _gen_expected_img());
     }
 }
