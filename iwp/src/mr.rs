@@ -71,15 +71,12 @@ pub fn get_initial_pixels(
 
 pub fn propagation_condition(
     marker: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
-    curr_pixel_coords: (u32, u32), // maybe transform those in a struct containing the coords and the reference to the pixel itself (or the pixel value)
-    ngb_pixel_coords: (u32, u32),
+    curr_pixel: iwp::PixelT, // maybe transform those in a struct containing the coords and the reference to the pixel itself (or the pixel value)
+    ngb_pixel: iwp::PixelT,
     mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
 ) -> bool {
-    let pixel = marker.get_pixel(curr_pixel_coords.0, curr_pixel_coords.1);
-    let ngb = marker.get_pixel(ngb_pixel_coords.0, ngb_pixel_coords.1);
-    let mask_ngb = mask.get_pixel(ngb_pixel_coords.0, ngb_pixel_coords.1);
-
-    if (ngb.0[0] < pixel.0[0]) && (mask_ngb.0[0] != ngb.0[0]) {
+    let mask_ngb = mask.get_pixel(ngb_pixel.coords.0, ngb_pixel.coords.1);
+    if (ngb_pixel.value < curr_pixel.value) && (mask_ngb.0[0] != ngb_pixel.value) {
         return true;
     }
 
@@ -88,14 +85,12 @@ pub fn propagation_condition(
 
 pub fn update_func(
     marker: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
-    curr_pixel_coords: (u32, u32),
-    ngb_pixel_coords: (u32, u32),
+    curr_pixel: iwp::PixelT, // maybe transform those in a struct containing the coords and the reference to the pixel itself (or the pixel value)
+    ngb_pixel: iwp::PixelT,
     mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
 ) -> u8 {
-    let pixel = marker.get_pixel(curr_pixel_coords.0, curr_pixel_coords.1);
-    let mask_ngb = mask.get_pixel(ngb_pixel_coords.0, ngb_pixel_coords.1);
-
-    return std::cmp::min(pixel.0[0], mask_ngb.0[0]);
+    let mask_ngb = mask.get_pixel(ngb_pixel.coords.0, ngb_pixel.coords.1);
+    return std::cmp::min(curr_pixel.value, mask_ngb.0[0]);
 }
 
 mod tests {
