@@ -70,7 +70,7 @@ fn get_initial_pixels(
 }
 
 fn propagation_condition(
-    marker: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+    _marker: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
     curr_pixel: img::PixelT, // maybe transform those in a struct containing the coords and the reference to the pixel itself (or the pixel value)
     ngb_pixel: img::PixelT,
     mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
@@ -84,7 +84,7 @@ fn propagation_condition(
 }
 
 fn update_func(
-    marker: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+    _marker: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
     curr_pixel: img::PixelT, // maybe transform those in a struct containing the coords and the reference to the pixel itself (or the pixel value)
     ngb_pixel: img::PixelT,
     mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
