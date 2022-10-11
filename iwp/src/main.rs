@@ -13,9 +13,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let dimensions = mask.dimensions();
     println!("dimensions: {:?}", dimensions);
 
-    imagepkg::mr::morph_reconstruction(&mask, &mut marker);
+    imagepkg::morph_reconstruction(&mask, &mut marker);
 
-    marker.save("result2.png")?;
+    marker.save("result.png")?;
 
     Ok(())
 }

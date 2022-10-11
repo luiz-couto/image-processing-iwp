@@ -1,5 +1,8 @@
 pub mod examples;
 pub mod format;
-pub mod img;
+mod img;
 pub mod iwp;
-pub mod mr;
+mod mr;
+
+pub use crate::img::{get_pixel_neighbours, ConnTypes, PixelT};
+pub use crate::mr::morph_reconstruction;
