@@ -1,10 +1,7 @@
 use image;
 use image::io::Reader as ImageReader;
+use imagepkg;
 use std::error::Error;
-
-mod format;
-mod iwp;
-mod mr;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let img_mask = ImageReader::open("mask.png")?.decode()?;
@@ -16,16 +13,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let dimensions = mask.dimensions();
     println!("dimensions: {:?}", dimensions);
 
-    let mut i = mr::get_initial_pixels(&mask, &mut marker);
-    iwp::iwp(
-        &mut marker,
-        mr::propagation_condition,
-        mr::update_func,
-        &mut i,
-        &mask,
-    );
-    println!("{:?}", i);
-    marker.save("result.png")?;
+    imagepkg::mr::morph_reconstruction(&mask, &mut marker);
+
+    marker.save("result2.png")?;
 
     Ok(())
 }

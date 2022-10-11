@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::{format, iwp};
+use crate::{img, iwp};
 use image::Luma;
 
 fn update_pixel(
@@ -8,7 +8,7 @@ fn update_pixel(
     mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
     marker: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
 ) {
-    let pixel_ngbs = iwp::get_pixel_neighbours(marker, pixel_coords, iwp::ConnTypes::Eight);
+    let pixel_ngbs = img::get_pixel_neighbours(marker, pixel_coords, img::ConnTypes::Eight);
 
     let pixel = marker.get_pixel(pixel_coords.0, pixel_coords.1);
     let mut greater = pixel.0[0];
@@ -30,7 +30,7 @@ fn update_pixel(
     pixel.0[0] = greater;
 }
 
-pub fn get_initial_pixels(
+fn get_initial_pixels(
     mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
     marker: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
 ) -> Vec<(u32, u32)> {
@@ -52,7 +52,7 @@ pub fn get_initial_pixels(
             let pixel_marker = marker.get_pixel(pixel_coords.0, pixel_coords.1);
             let pixel_value = pixel_marker.0[0];
 
-            let pixel_ngbs = iwp::get_pixel_neighbours(marker, pixel_coords, iwp::ConnTypes::Eight);
+            let pixel_ngbs = img::get_pixel_neighbours(marker, pixel_coords, img::ConnTypes::Eight);
 
             for ngb_coord in pixel_ngbs {
                 let ngb = marker.get_pixel(ngb_coord.0, ngb_coord.1);
@@ -69,10 +69,10 @@ pub fn get_initial_pixels(
     return queue;
 }
 
-pub fn propagation_condition(
+fn propagation_condition(
     marker: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
-    curr_pixel: iwp::PixelT, // maybe transform those in a struct containing the coords and the reference to the pixel itself (or the pixel value)
-    ngb_pixel: iwp::PixelT,
+    curr_pixel: img::PixelT, // maybe transform those in a struct containing the coords and the reference to the pixel itself (or the pixel value)
+    ngb_pixel: img::PixelT,
     mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
 ) -> bool {
     let mask_ngb = mask.get_pixel(ngb_pixel.coords.0, ngb_pixel.coords.1);
@@ -83,14 +83,28 @@ pub fn propagation_condition(
     return false;
 }
 
-pub fn update_func(
+fn update_func(
     marker: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
-    curr_pixel: iwp::PixelT, // maybe transform those in a struct containing the coords and the reference to the pixel itself (or the pixel value)
-    ngb_pixel: iwp::PixelT,
+    curr_pixel: img::PixelT, // maybe transform those in a struct containing the coords and the reference to the pixel itself (or the pixel value)
+    ngb_pixel: img::PixelT,
     mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
 ) -> u8 {
     let mask_ngb = mask.get_pixel(ngb_pixel.coords.0, ngb_pixel.coords.1);
     return std::cmp::min(curr_pixel.value, mask_ngb.0[0]);
+}
+
+pub fn morph_reconstruction(
+    mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+    marker: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
+) {
+    let mut initial_queue = get_initial_pixels(&mask, marker);
+    iwp::propagate(
+        marker,
+        propagation_condition,
+        update_func,
+        &mut initial_queue,
+        &mask,
+    );
 }
 
 mod tests {
@@ -255,17 +269,17 @@ mod tests {
     #[test]
     fn test_get_pixel_neighbours() {
         let mask = _gen_example_img();
-        let ngbs = iwp::get_pixel_neighbours(&mask, (0, 0), iwp::ConnTypes::Eight);
+        let ngbs = img::get_pixel_neighbours(&mask, (0, 0), img::ConnTypes::Eight);
         let expected = vec![(0, 1), (1, 0), (1, 1)];
 
         assert_eq!(ngbs, expected);
 
-        let ngbs = iwp::get_pixel_neighbours(&mask, (0, 0), iwp::ConnTypes::Four);
+        let ngbs = img::get_pixel_neighbours(&mask, (0, 0), img::ConnTypes::Four);
         let expected = vec![(0, 1), (1, 0)];
 
         assert_eq!(ngbs, expected);
 
-        let ngbs = iwp::get_pixel_neighbours(&mask, (2, 2), iwp::ConnTypes::Eight);
+        let ngbs = img::get_pixel_neighbours(&mask, (2, 2), img::ConnTypes::Eight);
         let expected = vec![
             (1, 1),
             (1, 2),
@@ -312,7 +326,7 @@ mod tests {
             }
         }
 
-        iwp::iwp(
+        iwp::propagate(
             &mut marker,
             propagation_condition,
             update_func,
