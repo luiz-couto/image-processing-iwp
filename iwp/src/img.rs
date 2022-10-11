@@ -44,3 +44,39 @@ pub fn get_pixel_neighbours(
 
     return neighbours;
 }
+
+mod tests {
+
+    #![allow(unused_imports)]
+
+    use crate::examples;
+    use crate::img;
+
+    #[test]
+    fn test_get_pixel_neighbours() {
+        let mask = examples::_gen_example_img();
+        let ngbs = img::get_pixel_neighbours(&mask, (0, 0), img::ConnTypes::Eight);
+        let expected = vec![(0, 1), (1, 0), (1, 1)];
+
+        assert_eq!(ngbs, expected);
+
+        let ngbs = img::get_pixel_neighbours(&mask, (0, 0), img::ConnTypes::Four);
+        let expected = vec![(0, 1), (1, 0)];
+
+        assert_eq!(ngbs, expected);
+
+        let ngbs = img::get_pixel_neighbours(&mask, (2, 2), img::ConnTypes::Eight);
+        let expected = vec![
+            (1, 1),
+            (1, 2),
+            (1, 3),
+            (2, 1),
+            (2, 3),
+            (3, 1),
+            (3, 2),
+            (3, 3),
+        ];
+
+        assert_eq!(ngbs, expected);
+    }
+}
