@@ -3,51 +3,12 @@ use std::collections::HashSet;
 use crate::{format, iwp};
 use image::Luma;
 
-pub enum ConnTypes {
-    Four = 4,
-    Eight = 8,
-}
-
-pub fn get_pixel_neighbours(
-    img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
-    coords: (u32, u32),
-    conn: ConnTypes,
-) -> Vec<(u32, u32)> {
-    let x = coords.0;
-    let y = coords.1;
-    let mut neighbours = Vec::new();
-
-    let floor_x = if x != 0 { x - 1 } else { x };
-    let floor_y = if y != 0 { y - 1 } else { y };
-
-    for i in (floor_x)..(x + 2) {
-        for j in (floor_y)..(y + 2) {
-            if !(i == x && j == y) {
-                match img.get_pixel_checked(i, j) {
-                    Some(_) => match conn {
-                        ConnTypes::Four => {
-                            if i == x || j == y {
-                                neighbours.push((i, j));
-                            }
-                        }
-
-                        ConnTypes::Eight => neighbours.push((i, j)),
-                    },
-                    None => continue,
-                }
-            }
-        }
-    }
-
-    return neighbours;
-}
-
 fn update_pixel(
     pixel_coords: (u32, u32),
     mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
     marker: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
 ) {
-    let pixel_ngbs = get_pixel_neighbours(marker, pixel_coords, ConnTypes::Eight);
+    let pixel_ngbs = iwp::get_pixel_neighbours(marker, pixel_coords, iwp::ConnTypes::Eight);
 
     let pixel = marker.get_pixel(pixel_coords.0, pixel_coords.1);
     let mut greater = pixel.0[0];
@@ -91,7 +52,7 @@ pub fn get_initial_pixels(
             let pixel_marker = marker.get_pixel(pixel_coords.0, pixel_coords.1);
             let pixel_value = pixel_marker.0[0];
 
-            let pixel_ngbs = get_pixel_neighbours(marker, pixel_coords, ConnTypes::Eight);
+            let pixel_ngbs = iwp::get_pixel_neighbours(marker, pixel_coords, iwp::ConnTypes::Eight);
 
             for ngb_coord in pixel_ngbs {
                 let ngb = marker.get_pixel(ngb_coord.0, ngb_coord.1);
@@ -299,17 +260,17 @@ mod tests {
     #[test]
     fn test_get_pixel_neighbours() {
         let mask = _gen_example_img();
-        let ngbs = get_pixel_neighbours(&mask, (0, 0), ConnTypes::Eight);
+        let ngbs = iwp::get_pixel_neighbours(&mask, (0, 0), iwp::ConnTypes::Eight);
         let expected = vec![(0, 1), (1, 0), (1, 1)];
 
         assert_eq!(ngbs, expected);
 
-        let ngbs = get_pixel_neighbours(&mask, (0, 0), ConnTypes::Four);
+        let ngbs = iwp::get_pixel_neighbours(&mask, (0, 0), iwp::ConnTypes::Four);
         let expected = vec![(0, 1), (1, 0)];
 
         assert_eq!(ngbs, expected);
 
-        let ngbs = get_pixel_neighbours(&mask, (2, 2), ConnTypes::Eight);
+        let ngbs = iwp::get_pixel_neighbours(&mask, (2, 2), iwp::ConnTypes::Eight);
         let expected = vec![
             (1, 1),
             (1, 2),
