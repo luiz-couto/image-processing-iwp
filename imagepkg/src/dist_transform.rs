@@ -180,6 +180,14 @@ mod tests {
         img.put_pixel(2, 2, Luma([0]));
 
         let dis_img = dist_transform(&mut img);
-        print_image_by_row(&dis_img);
+
+        let mut expected = _gen_same_value_image(3, 3, 2);
+        expected.put_pixel(0, 0, Luma([3]));
+        expected.put_pixel(1, 1, Luma([1]));
+        expected.put_pixel(2, 1, Luma([1]));
+        expected.put_pixel(1, 2, Luma([1]));
+        expected.put_pixel(2, 2, Luma([0]));
+
+        assert_eq!(dis_img, expected);
     }
 }
