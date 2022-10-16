@@ -85,7 +85,9 @@ pub fn dist_transform(img: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>) {
         update_func,
         &mut queue,
         &mut vr_diagram,
-    )
+    );
+
+    println!("{:?}", vr_diagram);
 }
 
 mod tests {
@@ -148,5 +150,13 @@ mod tests {
         let res = aprox_euclidean_distance((2, 2), (4, 0));
         let exp = 3;
         assert_eq!(exp, res);
+    }
+
+    #[test]
+    fn test_dist_transform() {
+        let mut img = _gen_same_value_image(3, 3, 0);
+        img.put_pixel(1, 1, Luma([1]));
+
+        dist_transform(&mut img);
     }
 }

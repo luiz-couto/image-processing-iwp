@@ -73,7 +73,7 @@ fn propagation_condition(
     _marker: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
     curr_pixel: img::PixelT,
     ngb_pixel: img::PixelT,
-    mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+    mask: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
 ) -> bool {
     let mask_ngb = mask.get_pixel(ngb_pixel.coords.0, ngb_pixel.coords.1);
     if (ngb_pixel.value < curr_pixel.value) && (mask_ngb.0[0] != ngb_pixel.value) {
@@ -87,14 +87,14 @@ fn update_func(
     _marker: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
     curr_pixel: img::PixelT,
     ngb_pixel: img::PixelT,
-    mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+    mask: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
 ) -> u8 {
     let mask_ngb = mask.get_pixel(ngb_pixel.coords.0, ngb_pixel.coords.1);
     return std::cmp::min(curr_pixel.value, mask_ngb.0[0]);
 }
 
 pub fn morph_reconstruction(
-    mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+    mask: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
     marker: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
 ) {
     let mut initial_queue = get_initial_pixels(&mask, marker);
@@ -103,7 +103,7 @@ pub fn morph_reconstruction(
         propagation_condition,
         update_func,
         &mut initial_queue,
-        &mask,
+        mask,
     );
 }
 
@@ -134,7 +134,7 @@ mod tests {
 
     #[test]
     fn test_propagation_phase() {
-        let mask = _gen_big_mask_img();
+        let mut mask = _gen_big_mask_img();
         let mut marker = _gen_big_marker_img();
 
         // did not use the get_initial_pixels function here because it does all the job
@@ -153,7 +153,7 @@ mod tests {
             propagation_condition,
             update_func,
             &mut initial,
-            &mask,
+            &mut mask,
         );
 
         assert_eq!(marker, _gen_expected_img());

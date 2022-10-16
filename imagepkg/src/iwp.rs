@@ -7,18 +7,18 @@ pub fn propagate<T>(
         img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
         curr_pixel: img::PixelT,
         ngb_pixel: img::PixelT,
-        aux_structure: T,
+        aux_structure: &mut T,
     ) -> bool,
     update_func: fn(
         img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
         curr_pixel: img::PixelT,
         ngb_pixel: img::PixelT,
-        aux_structure: T,
+        aux_structure: &mut T,
     ) -> u8,
     queue: &mut Vec<(u32, u32)>,
-    aux_structure: T,
+    aux_structure: &mut T,
 ) where
-    T: Copy, // check if this makes sense
+    T: Clone, // check if this makes sense
 {
     while queue.len() != 0 {
         let pixel_coords = queue.remove(0); // change this method to a more efficent one
