@@ -118,6 +118,7 @@ mod tests {
     use crate::{
         dist_transform::*,
         examples::{_gen_example_img, _gen_same_value_image},
+        format::print_image_by_row,
     };
 
     /*
@@ -175,9 +176,10 @@ mod tests {
 
     #[test]
     fn test_dist_transform() {
-        let mut img = _gen_same_value_image(3, 3, 0);
-        img.put_pixel(1, 1, Luma([1]));
+        let mut img = _gen_same_value_image(3, 3, 1);
+        img.put_pixel(2, 2, Luma([0]));
 
-        dist_transform(&mut img);
+        let dis_img = dist_transform(&mut img);
+        print_image_by_row(&dis_img);
     }
 }
