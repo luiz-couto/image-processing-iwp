@@ -1,6 +1,6 @@
 use image::Luma;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PixelT {
     pub coords: (u32, u32),
     pub value: u8,

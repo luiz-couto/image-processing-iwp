@@ -1,3 +1,4 @@
+mod dist_transform;
 pub mod examples;
 pub mod format;
 mod img;
