@@ -8,6 +8,11 @@ const BG: u8 = 0;
 const FR: u8 = 1;
 const INF_PIXEL: (u32, u32) = (u32::MAX, u32::MAX);
 
+fn aprox_euclidean_distance(p1: (u32, u32), p2: (u32, u32)) -> u32 {
+    let exp = ((p1.0 as f64 - p2.0 as f64).powi(2) + (p1.1 as f64 - p2.1 as f64).powi(2)).sqrt();
+    return exp.round() as u32;
+}
+
 fn get_initial_pixels(
     img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
     vr_diagram: &mut HashMap<(u32, u32), (u32, u32)>,
@@ -44,6 +49,19 @@ fn get_initial_pixels(
 
     let queue = Vec::from_iter(queue); //check complexity of this operation later
     return queue;
+}
+
+fn propagation_condition(
+    img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+    curr_pixel: img::PixelT,
+    ngb_pixel: img::PixelT,
+    vr_diagram: &mut HashMap<(u32, u32), (u32, u32)>,
+) -> bool {
+    let vr_p = vr_diagram.get(&curr_pixel.coords).unwrap();
+    let vr_q = vr_diagram.get(&ngb_pixel.coords).unwrap();
+
+    return aprox_euclidean_distance(ngb_pixel.coords, *vr_p)
+        < aprox_euclidean_distance(ngb_pixel.coords, *vr_q);
 }
 
 mod tests {
@@ -87,5 +105,24 @@ mod tests {
             Some(fg_pixel_vr) => assert_eq!(*fg_pixel_vr, INF_PIXEL),
             None => panic!("Test failed: pixel (1,1) not found in vr map"),
         }
+    }
+
+    #[test]
+    fn test_aprox_euclidean_distance() {
+        let res = aprox_euclidean_distance((1, 1), (1, 1));
+        let exp = 0;
+        assert_eq!(exp, res);
+
+        let res = aprox_euclidean_distance((1, 1), (3, 1));
+        let exp = 2;
+        assert_eq!(exp, res);
+
+        let res = aprox_euclidean_distance((2, 2), (3, 1));
+        let exp = 1;
+        assert_eq!(exp, res);
+
+        let res = aprox_euclidean_distance((2, 2), (4, 0));
+        let exp = 3;
+        assert_eq!(exp, res);
     }
 }
