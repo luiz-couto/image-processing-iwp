@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use image::Luma;
 
-use crate::img;
+use crate::{img, iwp};
 
 const BG: u8 = 0;
 const FR: u8 = 1;
@@ -52,7 +52,7 @@ fn get_initial_pixels(
 }
 
 fn propagation_condition(
-    img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+    _img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
     curr_pixel: img::PixelT,
     ngb_pixel: img::PixelT,
     vr_diagram: &mut HashMap<(u32, u32), (u32, u32)>,
@@ -62,6 +62,30 @@ fn propagation_condition(
 
     return aprox_euclidean_distance(ngb_pixel.coords, *vr_p)
         < aprox_euclidean_distance(ngb_pixel.coords, *vr_q);
+}
+
+fn update_func(
+    _img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+    curr_pixel: img::PixelT,
+    ngb_pixel: img::PixelT,
+    vr_diagram: &mut HashMap<(u32, u32), (u32, u32)>,
+) -> u8 {
+    let vr_p = vr_diagram.get(&curr_pixel.coords).unwrap();
+    vr_diagram.insert(ngb_pixel.coords, *vr_p);
+    return ngb_pixel.value;
+}
+
+pub fn dist_transform(img: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>) {
+    let mut vr_diagram = HashMap::<(u32, u32), (u32, u32)>::new();
+    let mut queue = get_initial_pixels(img, &mut vr_diagram);
+
+    iwp::propagate(
+        img,
+        propagation_condition,
+        update_func,
+        &mut queue,
+        &mut vr_diagram,
+    )
 }
 
 mod tests {
