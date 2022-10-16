@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use image::Luma;
 
-use crate::{img, iwp};
+use crate::{examples::_gen_same_value_image, img, iwp};
 
 const BG: u8 = 0;
 const FR: u8 = 1;
@@ -75,7 +75,28 @@ fn update_func(
     return ngb_pixel.value;
 }
 
-pub fn dist_transform(img: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>) {
+fn get_final_dist_img(
+    width: u32,
+    height: u32,
+    vr_diagram: &HashMap<(u32, u32), (u32, u32)>,
+) -> image::ImageBuffer<Luma<u8>, Vec<u8>> {
+    let mut img = _gen_same_value_image(width, height, 0);
+    for i in 0..height {
+        for j in 0..width {
+            let pixel_coords = (j, i);
+            let vr_p = vr_diagram.get(&pixel_coords).unwrap();
+            let value = aprox_euclidean_distance(pixel_coords, *vr_p);
+
+            img.put_pixel(pixel_coords.0, pixel_coords.1, Luma([value as u8]));
+        }
+    }
+
+    return img;
+}
+
+pub fn dist_transform(
+    img: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
+) -> image::ImageBuffer<Luma<u8>, Vec<u8>> {
     let mut vr_diagram = HashMap::<(u32, u32), (u32, u32)>::new();
     let mut queue = get_initial_pixels(img, &mut vr_diagram);
 
@@ -87,7 +108,7 @@ pub fn dist_transform(img: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>) {
         &mut vr_diagram,
     );
 
-    println!("{:?}", vr_diagram);
+    return get_final_dist_img(img.width(), img.height(), &vr_diagram);
 }
 
 mod tests {
