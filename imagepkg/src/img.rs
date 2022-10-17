@@ -1,5 +1,7 @@
 use image::Luma;
 
+use crate::examples::_gen_same_value_image;
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PixelT {
     pub coords: (u32, u32),
@@ -43,6 +45,27 @@ pub fn get_pixel_neighbours(
     }
 
     return neighbours;
+}
+
+pub fn convert_to_binary(
+    img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+) -> image::ImageBuffer<Luma<u8>, Vec<u8>> {
+    let width = img.width();
+    let height = img.height();
+
+    let mut binary_img = _gen_same_value_image(width, height, 0);
+
+    for i in 0..height {
+        for j in 0..width {
+            let pixel_coords = (j, i);
+            let pixel_value = img.get_pixel(pixel_coords.0, pixel_coords.1).0[0];
+            if pixel_value > 128 {
+                binary_img.put_pixel(pixel_coords.0, pixel_coords.1, Luma([1]));
+            }
+        }
+    }
+
+    return binary_img;
 }
 
 mod tests {
