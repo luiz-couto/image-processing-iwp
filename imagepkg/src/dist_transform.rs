@@ -8,6 +8,12 @@ const BG: u8 = 0;
 const FR: u8 = 1;
 const INF_PIXEL: (u32, u32) = (u32::MAX, u32::MAX);
 
+pub enum DistTypes {
+    Euclidean,
+    CityBlock,
+    Chessboard,
+}
+
 fn aprox_euclidean_distance(p1: (u32, u32), p2: (u32, u32)) -> u32 {
     let exp = ((p1.0 as f64 - p2.0 as f64).powi(2) + (p1.1 as f64 - p2.1 as f64).powi(2)).sqrt();
     return exp.round() as u32;
@@ -15,6 +21,15 @@ fn aprox_euclidean_distance(p1: (u32, u32), p2: (u32, u32)) -> u32 {
 
 fn city_block_distance(p1: (u32, u32), p2: (u32, u32)) -> u32 {
     let exp = (p1.0 as i64 - p2.0 as i64).abs() + (p1.1 as i64 - p2.1 as i64).abs();
+    return exp as u32;
+}
+
+fn chessboard_distance(p1: (u32, u32), p2: (u32, u32)) -> u32 {
+    let exp = std::cmp::max(
+        (p1.0 as i64 - p2.0 as i64).abs(),
+        (p1.1 as i64 - p2.1 as i64).abs(),
+    );
+
     return exp as u32;
 }
 
@@ -194,6 +209,25 @@ mod tests {
 
         let res = city_block_distance((1, 0), (7, 6));
         let exp = 12;
+        assert_eq!(exp, res);
+    }
+
+    #[test]
+    fn test_chessboard_distance() {
+        let res = chessboard_distance((1, 1), (1, 1));
+        let exp = 0;
+        assert_eq!(exp, res);
+
+        let res = chessboard_distance((1, 1), (3, 1));
+        let exp = 2;
+        assert_eq!(exp, res);
+
+        let res = chessboard_distance((2, 2), (3, 1));
+        let exp = 1;
+        assert_eq!(exp, res);
+
+        let res = chessboard_distance((2, 2), (4, 0));
+        let exp = 2;
         assert_eq!(exp, res);
     }
 
