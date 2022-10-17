@@ -8,10 +8,17 @@ const BG: u8 = 0;
 const FR: u8 = 1;
 const INF_PIXEL: (u32, u32) = (u32::MAX, u32::MAX);
 
+#[derive(Clone)]
 pub enum DistTypes {
     Euclidean,
     CityBlock,
     Chessboard,
+}
+
+#[derive(Clone)]
+struct DistTransform {
+    dist_func: fn(p1: (u32, u32), p2: (u32, u32)) -> u32,
+    vr_diagram: HashMap<(u32, u32), (u32, u32)>,
 }
 
 fn aprox_euclidean_distance(p1: (u32, u32), p2: (u32, u32)) -> u32 {
@@ -75,23 +82,23 @@ fn propagation_condition(
     _img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
     curr_pixel: img::PixelT,
     ngb_pixel: img::PixelT,
-    vr_diagram: &mut HashMap<(u32, u32), (u32, u32)>,
+    dist_struct: &mut DistTransform,
 ) -> bool {
-    let vr_p = vr_diagram.get(&curr_pixel.coords).unwrap();
-    let vr_q = vr_diagram.get(&ngb_pixel.coords).unwrap();
+    let vr_p = dist_struct.vr_diagram.get(&curr_pixel.coords).unwrap();
+    let vr_q = dist_struct.vr_diagram.get(&ngb_pixel.coords).unwrap();
 
-    return aprox_euclidean_distance(ngb_pixel.coords, *vr_p)
-        < aprox_euclidean_distance(ngb_pixel.coords, *vr_q);
+    return (dist_struct.dist_func)(ngb_pixel.coords, *vr_p)
+        < (dist_struct.dist_func)(ngb_pixel.coords, *vr_q);
 }
 
 fn update_func(
     _img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
     curr_pixel: img::PixelT,
     ngb_pixel: img::PixelT,
-    vr_diagram: &mut HashMap<(u32, u32), (u32, u32)>,
+    dist_struct: &mut DistTransform,
 ) -> u8 {
-    let vr_p = vr_diagram.get(&curr_pixel.coords).unwrap();
-    vr_diagram.insert(ngb_pixel.coords, *vr_p);
+    let vr_p = dist_struct.vr_diagram.get(&curr_pixel.coords).unwrap();
+    dist_struct.vr_diagram.insert(ngb_pixel.coords, *vr_p);
     return ngb_pixel.value;
 }
 
@@ -116,19 +123,31 @@ fn get_final_dist_img(
 
 pub fn dist_transform(
     img: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
+    dist_type: DistTypes,
 ) -> image::ImageBuffer<Luma<u8>, Vec<u8>> {
     let mut vr_diagram = HashMap::<(u32, u32), (u32, u32)>::new();
     let mut queue = get_initial_pixels(img, &mut vr_diagram);
+
+    let dist_func = match dist_type {
+        DistTypes::Euclidean => aprox_euclidean_distance,
+        DistTypes::Chessboard => chessboard_distance,
+        DistTypes::CityBlock => city_block_distance,
+    };
+
+    let mut dist_struct = DistTransform {
+        dist_func,
+        vr_diagram,
+    };
 
     iwp::propagate(
         img,
         propagation_condition,
         update_func,
         &mut queue,
-        &mut vr_diagram,
+        &mut dist_struct,
     );
 
-    return get_final_dist_img(img.width(), img.height(), &vr_diagram);
+    return get_final_dist_img(img.width(), img.height(), &dist_struct.vr_diagram);
 }
 
 mod tests {
@@ -232,11 +251,11 @@ mod tests {
     }
 
     #[test]
-    fn test_dist_transform() {
+    fn test_euclidean_dist_transform() {
         let mut img = _gen_same_value_image(3, 3, 1);
         img.put_pixel(2, 2, Luma([0]));
 
-        let dis_img = dist_transform(&mut img);
+        let dis_img = dist_transform(&mut img, DistTypes::Euclidean);
 
         let mut expected = _gen_same_value_image(3, 3, 2);
         expected.put_pixel(0, 0, Luma([3]));
