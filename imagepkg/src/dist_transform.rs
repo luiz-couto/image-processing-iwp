@@ -105,14 +105,14 @@ fn update_func(
 fn get_final_dist_img(
     width: u32,
     height: u32,
-    vr_diagram: &HashMap<(u32, u32), (u32, u32)>,
+    dist_struct: &mut DistTransform,
 ) -> image::ImageBuffer<Luma<u8>, Vec<u8>> {
     let mut img = _gen_same_value_image(width, height, 0);
     for i in 0..height {
         for j in 0..width {
             let pixel_coords = (j, i);
-            let vr_p = vr_diagram.get(&pixel_coords).unwrap();
-            let value = aprox_euclidean_distance(pixel_coords, *vr_p);
+            let vr_p = dist_struct.vr_diagram.get(&pixel_coords).unwrap();
+            let value = (dist_struct.dist_func)(pixel_coords, *vr_p);
 
             img.put_pixel(pixel_coords.0, pixel_coords.1, Luma([value as u8]));
         }
@@ -147,7 +147,9 @@ pub fn dist_transform(
         &mut dist_struct,
     );
 
-    return get_final_dist_img(img.width(), img.height(), &dist_struct.vr_diagram);
+    println!("{:?}", dist_struct.vr_diagram);
+
+    return get_final_dist_img(img.width(), img.height(), &mut dist_struct);
 }
 
 mod tests {
@@ -229,6 +231,10 @@ mod tests {
         let res = city_block_distance((1, 0), (7, 6));
         let exp = 12;
         assert_eq!(exp, res);
+
+        let res = city_block_distance((0, 0), (2, 2));
+        let exp = 4;
+        assert_eq!(exp, res);
     }
 
     #[test]
@@ -262,6 +268,40 @@ mod tests {
         expected.put_pixel(1, 1, Luma([1]));
         expected.put_pixel(2, 1, Luma([1]));
         expected.put_pixel(1, 2, Luma([1]));
+        expected.put_pixel(2, 2, Luma([0]));
+
+        assert_eq!(dis_img, expected);
+    }
+
+    #[test]
+    fn test_city_block_dist_transform() {
+        let mut img = _gen_same_value_image(3, 3, 1);
+        img.put_pixel(2, 2, Luma([0]));
+
+        let dis_img = dist_transform(&mut img, DistTypes::CityBlock);
+
+        let mut expected = _gen_same_value_image(3, 3, 2);
+        expected.put_pixel(0, 0, Luma([4]));
+        expected.put_pixel(0, 1, Luma([3]));
+        expected.put_pixel(1, 0, Luma([3]));
+        expected.put_pixel(1, 2, Luma([1]));
+        expected.put_pixel(2, 1, Luma([1]));
+        expected.put_pixel(2, 2, Luma([0]));
+
+        assert_eq!(dis_img, expected);
+    }
+
+    #[test]
+    fn test_chessboard_dist_transform() {
+        let mut img = _gen_same_value_image(3, 3, 1);
+        img.put_pixel(2, 2, Luma([0]));
+
+        let dis_img = dist_transform(&mut img, DistTypes::Chessboard);
+
+        let mut expected = _gen_same_value_image(3, 3, 2);
+        expected.put_pixel(1, 1, Luma([1]));
+        expected.put_pixel(1, 2, Luma([1]));
+        expected.put_pixel(2, 1, Luma([1]));
         expected.put_pixel(2, 2, Luma([0]));
 
         assert_eq!(dis_img, expected);
