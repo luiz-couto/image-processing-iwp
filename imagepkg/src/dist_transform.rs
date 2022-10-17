@@ -147,8 +147,6 @@ pub fn dist_transform(
         &mut dist_struct,
     );
 
-    println!("{:?}", dist_struct.vr_diagram);
-
     return get_final_dist_img(img.width(), img.height(), &mut dist_struct);
 }
 
