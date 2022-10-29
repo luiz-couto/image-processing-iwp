@@ -1,21 +1,27 @@
 use image;
 use image::io::Reader as ImageReader;
-use imagepkg;
+use imagepkg::{self, convert_to_binary};
 use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let img_mask = ImageReader::open("mask.png")?.decode()?;
-    let mut mask = img_mask.to_luma8();
+    let img = ImageReader::open("bin_img.png")?.decode()?;
+    let img = img.to_luma8();
 
-    let img_marker = ImageReader::open("marker.png")?.decode()?;
-    let mut marker = img_marker.to_luma8();
+    let mut bin_img = convert_to_binary(&img);
 
-    let dimensions = mask.dimensions();
-    println!("dimensions: {:?}", dimensions);
+    //print_image_by_row(&bin_img);
 
-    imagepkg::morph_reconstruction(&mut mask, &mut marker);
+    let res = imagepkg::dist_transform(&mut bin_img, imagepkg::DistTypes::Euclidean);
 
-    marker.save("result.png")?;
+    // let img_marker = ImageReader::open("marker.png")?.decode()?;
+    // let mut marker = img_marker.to_luma8();
+
+    // let dimensions = mask.dimensions();
+    // println!("dimensions: {:?}", dimensions);
+
+    // imagepkg::morph_reconstruction(&mut mask, &mut marker);
+
+    res.save("result_bin_2.png")?;
 
     Ok(())
 }
