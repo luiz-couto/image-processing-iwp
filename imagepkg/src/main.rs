@@ -1,6 +1,5 @@
 use image;
 use image::io::Reader as ImageReader;
-use imagepkg::format::print_image_by_row;
 use imagepkg::{self, convert_to_binary};
 use std::error::Error;
 
