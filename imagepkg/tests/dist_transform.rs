@@ -1,11 +1,13 @@
 use image;
 use image::io::Reader as ImageReader;
-use imagepkg::format::print_image_by_row;
 use imagepkg::{self, convert_to_binary};
-use std::error::Error;
 
-fn main() -> Result<(), Box<dyn Error>> {
-    let img = ImageReader::open("bin_img.png")?.decode()?;
+#[test]
+fn test_distance_transform() {
+    let img = ImageReader::open("./imgs/dist_transform/bin_img.png")
+        .unwrap()
+        .decode()
+        .unwrap();
     let img = img.to_luma8();
 
     let mut bin_img = convert_to_binary(&img);
@@ -22,7 +24,5 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // imagepkg::morph_reconstruction(&mut mask, &mut marker);
 
-    res.save("result_bin_2.png")?;
-
-    Ok(())
+    res.save("result_bin_2.png").unwrap();
 }
