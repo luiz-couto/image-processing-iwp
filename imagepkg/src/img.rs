@@ -68,12 +68,43 @@ pub fn convert_to_binary(
     return binary_img;
 }
 
+pub fn arrange(img: &image::ImageBuffer<Luma<u8>, Vec<u8>>, num_windows: u32) {
+    let columns = (num_windows as f32).sqrt().ceil() as u32;
+    let full_rows = num_windows / columns;
+    let orphans = num_windows % columns;
+
+    let aux = if orphans == 0 {
+        full_rows
+    } else {
+        full_rows + 1
+    };
+
+    let width = img.width() / columns;
+    let height = img.height() / aux;
+
+    for y in 0..full_rows {
+        for x in 0..columns {
+            println!("({:?}, {:?})", x * width, y * height);
+        }
+    }
+
+    if orphans > 0 {
+        let orphan_width = img.width() / orphans;
+        let y = full_rows;
+        for x in 0..orphans {
+            println!("{:?}, {:?}", x * orphan_width, y * height);
+        }
+    }
+}
+
 mod tests {
 
     #![allow(unused_imports)]
 
     use crate::examples;
     use crate::img;
+
+    use super::arrange;
 
     #[test]
     fn test_get_pixel_neighbours() {
@@ -101,5 +132,11 @@ mod tests {
         ];
 
         assert_eq!(ngbs, expected);
+    }
+
+    #[test]
+    fn test_arrange() {
+        let img = examples::_gen_same_value_image(37, 37, 0);
+        arrange(&img, 8);
     }
 }
