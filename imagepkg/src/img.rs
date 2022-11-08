@@ -8,6 +8,13 @@ pub struct PixelT {
     pub value: u8,
 }
 
+#[derive(Clone, Copy)]
+struct Section {
+    pub start: (u32, u32),
+    pub width: u32,
+    pub height: u32,
+}
+
 pub enum ConnTypes {
     Four = 4,
     Eight = 8,
@@ -79,12 +86,33 @@ pub fn arrange(img: &image::ImageBuffer<Luma<u8>, Vec<u8>>, num_windows: u32) {
         full_rows + 1
     };
 
-    let width = img.width() / columns;
-    let height = img.height() / aux;
+    let base_width = img.width() / columns;
+    let base_height = img.height() / aux;
+
+    let width_leftover = img.width() % columns;
+    let height_leftover = img.height() % aux;
 
     for y in 0..full_rows {
         for x in 0..columns {
-            println!("({:?}, {:?})", x * width, y * height);
+            let width = if x == columns - 1 {
+                base_width + width_leftover
+            } else {
+                base_width
+            };
+
+            let height = if orphans == 0 && y == full_rows - 1 {
+                base_height + height_leftover
+            } else {
+                base_height
+            };
+
+            println!(
+                "({:?}, {:?}), width: {:?}, height: {:?}",
+                x * base_width,
+                y * base_height,
+                width,
+                height
+            );
         }
     }
 
@@ -92,7 +120,18 @@ pub fn arrange(img: &image::ImageBuffer<Luma<u8>, Vec<u8>>, num_windows: u32) {
         let orphan_width = img.width() / orphans;
         let y = full_rows;
         for x in 0..orphans {
-            println!("{:?}, {:?}", x * orphan_width, y * height);
+            let width = if x == orphans - 1 {
+                base_width + width_leftover
+            } else {
+                base_width
+            };
+            println!(
+                "({:?}, {:?}), width: {:?}, height: {:?}",
+                x * orphan_width,
+                y * base_height,
+                width,
+                base_height + height_leftover
+            );
         }
     }
 }
@@ -136,7 +175,7 @@ mod tests {
 
     #[test]
     fn test_arrange() {
-        let img = examples::_gen_same_value_image(37, 37, 0);
-        arrange(&img, 8);
+        let img = examples::_gen_same_value_image(200, 37, 0);
+        arrange(&img, 4);
     }
 }
