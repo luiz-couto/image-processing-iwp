@@ -9,7 +9,7 @@ pub struct PixelT {
 }
 
 #[derive(Clone, Copy)]
-struct Section {
+pub struct Section {
     pub start: (u32, u32),
     pub width: u32,
     pub height: u32,
@@ -75,7 +75,8 @@ pub fn convert_to_binary(
     return binary_img;
 }
 
-pub fn arrange(img: &image::ImageBuffer<Luma<u8>, Vec<u8>>, num_windows: u32) {
+pub fn arrange(img: &image::ImageBuffer<Luma<u8>, Vec<u8>>, num_windows: u32) -> Vec<Section> {
+    let mut sections: Vec<Section> = Vec::new();
     let columns = (num_windows as f32).sqrt().ceil() as u32;
     let full_rows = num_windows / columns;
     let orphans = num_windows % columns;
@@ -106,13 +107,19 @@ pub fn arrange(img: &image::ImageBuffer<Luma<u8>, Vec<u8>>, num_windows: u32) {
                 base_height
             };
 
-            println!(
-                "({:?}, {:?}), width: {:?}, height: {:?}",
-                x * base_width,
-                y * base_height,
+            sections.push(Section {
+                start: (x * base_width, y * base_height),
                 width,
-                height
-            );
+                height,
+            });
+
+            // println!(
+            //     "({:?}, {:?}), width: {:?}, height: {:?}",
+            //     x * base_width,
+            //     y * base_height,
+            //     width,
+            //     height
+            // );
         }
     }
 
@@ -125,15 +132,35 @@ pub fn arrange(img: &image::ImageBuffer<Luma<u8>, Vec<u8>>, num_windows: u32) {
             } else {
                 base_width
             };
-            println!(
-                "({:?}, {:?}), width: {:?}, height: {:?}",
-                x * orphan_width,
-                y * base_height,
+
+            sections.push(Section {
+                start: (x * orphan_width, y * base_height),
                 width,
-                base_height + height_leftover
-            );
+                height: base_height + height_leftover,
+            });
+            // println!(
+            //     "({:?}, {:?}), width: {:?}, height: {:?}",
+            //     x * orphan_width,
+            //     y * base_height,
+            //     width,
+            //     base_height + height_leftover
+            // );
         }
     }
+
+    return sections;
+}
+
+pub fn is_pixel_in_section(pixel: (u32, u32), section: Section) -> bool {
+    if (section.start.0 <= pixel.0)
+        && (pixel.0 <= section.start.0 + section.width)
+        && (section.start.1 <= pixel.1)
+        && (pixel.1 <= section.start.1 + section.height)
+    {
+        return true;
+    }
+
+    return false;
 }
 
 mod tests {
@@ -142,8 +169,6 @@ mod tests {
 
     use crate::examples;
     use crate::img;
-
-    use super::arrange;
 
     #[test]
     fn test_get_pixel_neighbours() {
@@ -176,6 +201,19 @@ mod tests {
     #[test]
     fn test_arrange() {
         let img = examples::_gen_same_value_image(200, 37, 0);
-        arrange(&img, 4);
+        img::arrange(&img, 4);
+    }
+
+    #[test]
+    fn test_is_pixel_in_section() {
+        let section = img::Section {
+            start: (0, 0),
+            width: 2,
+            height: 2,
+        };
+
+        assert_eq!(img::is_pixel_in_section((0, 0), section), true);
+        assert_eq!(img::is_pixel_in_section((2, 2), section), true);
+        assert_eq!(img::is_pixel_in_section((3, 2), section), false);
     }
 }
