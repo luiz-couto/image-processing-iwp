@@ -95,47 +95,50 @@ pub fn propagate_parallel<T>(
     }
     println!("{:?}", parallel_sections);
 
-    let img = Arc::new(Mutex::new(base_img.clone()));
+    let img = Arc::new(base_img.clone());
+    let img_2 = Arc::new(Mutex::new(base_img.clone()));
     let aux_s = Arc::new(Mutex::new(aux_structure.clone()));
 
     let mut handles = vec![];
 
     for mut section in parallel_sections {
         let img = Arc::clone(&img);
+        let img_2 = Arc::clone(&img_2);
         let mut aux_s = Arc::clone(&aux_s);
         let handle = thread::spawn(move || {
-            let mut img_sec = img.lock().unwrap();
-
             println!("Running thread of section {:?}", section.section);
 
             while section.queue.len() != 0 {
                 let pixel_coords = section.queue.remove(0);
                 let curr_pixel = img::PixelT {
                     coords: pixel_coords,
-                    value: img_sec.get_pixel(pixel_coords.0, pixel_coords.1).0[0],
+                    value: img.get_pixel(pixel_coords.0, pixel_coords.1).0[0],
                 };
                 let pixel_ngbs =
-                    img::get_pixel_neighbours(&img_sec, pixel_coords, img::ConnTypes::Eight);
+                    img::get_pixel_neighbours(&img, pixel_coords, img::ConnTypes::Eight);
 
                 for ngb_coord in pixel_ngbs {
                     if img::is_pixel_in_section(ngb_coord, section.section) {
                         let ngb_pixel = img::PixelT {
                             coords: ngb_coord,
-                            value: img_sec.get_pixel(ngb_coord.0, ngb_coord.1).0[0],
+                            value: img.get_pixel(ngb_coord.0, ngb_coord.1).0[0],
                         };
 
-                        if propagation_condition(&img_sec, curr_pixel, ngb_pixel, &mut aux_s) {
-                            let new_value =
-                                update_func(&img_sec, curr_pixel, ngb_pixel, &mut aux_s);
+                        if propagation_condition(&img, curr_pixel, ngb_pixel, &mut aux_s) {
+                            let new_value = update_func(&img, curr_pixel, ngb_pixel, &mut aux_s);
 
+                            let mut img_sec = img_2.lock().unwrap();
                             let mut ngb = img_sec.get_pixel_mut(ngb_coord.0, ngb_coord.1);
                             ngb.0[0] = new_value;
+                            drop(img_sec);
 
                             section.queue.push(ngb_coord);
                         }
                     }
                 }
             }
+
+            println!("Finish thread of section {:?}", section.section);
 
             //drop(img_sec);
         });

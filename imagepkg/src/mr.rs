@@ -1,10 +1,12 @@
 use std::{
     collections::HashSet,
     sync::{Arc, Mutex},
+    thread,
 };
 
-use crate::{img, iwp};
-use image::Luma;
+use crate::{format::print_image_by_row, img, iwp};
+use image::{imageops, io::Reader as ImageReader, GenericImage, GenericImageView};
+use image::{ImageBuffer, Luma, SubImage};
 
 fn update_pixel(
     pixel_coords: (u32, u32),
@@ -33,12 +35,23 @@ fn update_pixel(
     pixel.0[0] = greater;
 }
 
+fn update_pixel_parallel(
+    pixel_coords: (u32, u32),
+    mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+    marker_sec: &mut SubImage<&mut image::ImageBuffer<Luma<u8>, Vec<u8>>>,
+) {
+    marker_sec.get_pixel(pixel_coords.0, pixel_coords.1);
+    //marker_sec.put_pixel(x, y, pixel)
+    let pixel_ngbs =
+        img::get_pixel_neighbours(marker_sec.inner(), pixel_coords, img::ConnTypes::Eight);
+}
+
 fn get_initial_pixels(
     mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
     marker: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
 ) -> Vec<(u32, u32)> {
-    let width = mask.width();
-    let height = mask.height();
+    let width = marker.width();
+    let height = marker.height();
     let mut queue = HashSet::new();
 
     for i in 0..height {
@@ -69,6 +82,45 @@ fn get_initial_pixels(
     }
 
     let queue = Vec::from_iter(queue); //check complexity of this operation later
+    return queue;
+}
+
+fn get_initial_pixels_parallel(
+    mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+    marker: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
+    num_threads: u32,
+) -> Vec<(u32, u32)> {
+    let sections = img::arrange(&marker, num_threads);
+    let mask_arc = Arc::new(mask.clone());
+
+    let mut handles = vec![];
+
+    for section in sections {
+        let mut img_sec = imageops::crop(
+            marker,
+            section.start.0,
+            section.start.1,
+            section.width,
+            section.height,
+        )
+        .to_image();
+
+        let mask_arc_clone = Arc::clone(&mask_arc);
+
+        let handle = thread::spawn(move || {
+            return get_initial_pixels(&mask_arc_clone, &mut img_sec);
+        });
+
+        handles.push(handle);
+    }
+
+    let mut queue = vec![];
+
+    for handle in handles {
+        let mut sec_q = handle.join().unwrap();
+        queue.append(&mut sec_q);
+    }
+
     return queue;
 }
 
@@ -207,27 +259,30 @@ mod tests {
     #[test]
     fn test_propagation_phase_parallel() {
         let num_threads: u32 = 2;
-        let mut mask = _gen_big_mask_img();
-        let mut marker = _gen_big_marker_img();
+        let img_mask = ImageReader::open("./tests/imgs/mr/100-percent-mask.jpg")
+            .unwrap()
+            .decode()
+            .unwrap();
+        let mut mask = img_mask.to_luma8();
 
-        // did not use the get_initial_pixels function here because it does all the job
-        let mut initial: Vec<(u32, u32)> = Vec::new();
-        for i in 0..10 {
-            for j in 0..10 {
-                let pixel = marker.get_pixel(i, j);
-                if pixel.0[0] != 8 {
-                    initial.push((i, j));
-                }
-            }
-        }
+        let img_marker = ImageReader::open("./tests/imgs/mr/100-percent-marker.jpg")
+            .unwrap()
+            .decode()
+            .unwrap();
+        let mut marker = img_marker.to_luma8();
 
-        iwp::propagate_parallel(
-            &mut marker,
-            propagation_condition_parallel,
-            update_func_parallel,
-            &mut initial,
-            &mut mask,
-            num_threads,
-        );
+        let num_threads = 8;
+        let mut initial = get_initial_pixels_parallel(&mask, &mut marker, num_threads);
+
+        //println!("UHUl {:?}", initial.len());
+
+        // iwp::propagate_parallel(
+        //     &mut marker,
+        //     propagation_condition_parallel,
+        //     update_func_parallel,
+        //     &mut initial,
+        //     &mut mask,
+        //     num_threads,
+        // );
     }
 }
