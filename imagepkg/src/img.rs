@@ -8,7 +8,7 @@ pub struct PixelT {
     pub value: u8,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Section {
     pub start: (u32, u32),
     pub width: u32,
@@ -75,11 +75,11 @@ pub fn convert_to_binary(
     return binary_img;
 }
 
-pub fn arrange(img: &image::ImageBuffer<Luma<u8>, Vec<u8>>, num_windows: u32) -> Vec<Section> {
+pub fn arrange(img: &image::ImageBuffer<Luma<u8>, Vec<u8>>, num_sections: u32) -> Vec<Section> {
     let mut sections: Vec<Section> = Vec::new();
-    let columns = (num_windows as f32).sqrt().ceil() as u32;
-    let full_rows = num_windows / columns;
-    let orphans = num_windows % columns;
+    let columns = (num_sections as f32).sqrt().ceil() as u32;
+    let full_rows = num_sections / columns;
+    let orphans = num_sections % columns;
 
     let aux = if orphans == 0 {
         full_rows
@@ -151,11 +151,12 @@ pub fn arrange(img: &image::ImageBuffer<Luma<u8>, Vec<u8>>, num_windows: u32) ->
     return sections;
 }
 
+// Check if this functin is correct
 pub fn is_pixel_in_section(pixel: (u32, u32), section: Section) -> bool {
     if (section.start.0 <= pixel.0)
-        && (pixel.0 <= section.start.0 + section.width)
+        && (pixel.0 < section.start.0 + section.width)
         && (section.start.1 <= pixel.1)
-        && (pixel.1 <= section.start.1 + section.height)
+        && (pixel.1 < section.start.1 + section.height)
     {
         return true;
     }
