@@ -108,20 +108,29 @@ fn get_initial_pixels_parallel(
         let mask_arc_clone = Arc::clone(&mask_arc);
 
         let handle = thread::spawn(move || {
-            return get_initial_pixels(&mask_arc_clone, &mut img_sec);
+            let mut relative_queue = get_initial_pixels(&mask_arc_clone, &mut img_sec);
+            relative_queue
+                .iter_mut()
+                .for_each(|p| *p = (p.0 + section.start.0, p.1 + section.start.1));
+            return relative_queue;
         });
 
         handles.push(handle);
     }
 
-    let mut queue = vec![];
+    // Chech if creating a HashSet is really necessary - since it adds a little overhead
+    //let mut queue = vec![];
+    let mut queue = HashSet::new();
 
     for handle in handles {
-        let mut sec_q = handle.join().unwrap();
-        queue.append(&mut sec_q);
+        let sec_q = handle.join().unwrap();
+        for el in sec_q {
+            queue.insert(el);
+        }
+        //queue.append(&mut sec_q);
     }
 
-    return queue;
+    return Vec::from_iter(queue);
 }
 
 fn propagation_condition(
@@ -258,7 +267,6 @@ mod tests {
 
     #[test]
     fn test_propagation_phase_parallel() {
-        let num_threads: u32 = 2;
         let img_mask = ImageReader::open("./tests/imgs/mr/100-percent-mask.jpg")
             .unwrap()
             .decode()
@@ -271,18 +279,19 @@ mod tests {
             .unwrap();
         let mut marker = img_marker.to_luma8();
 
-        let num_threads = 8;
+        // let mut mask = _gen_big_mask_img();
+        // let mut marker = _gen_big_marker_img();
+
+        let num_threads = 6;
         let mut initial = get_initial_pixels_parallel(&mask, &mut marker, num_threads);
 
-        //println!("UHUl {:?}", initial.len());
-
-        // iwp::propagate_parallel(
-        //     &mut marker,
-        //     propagation_condition_parallel,
-        //     update_func_parallel,
-        //     &mut initial,
-        //     &mut mask,
-        //     num_threads,
-        // );
+        iwp::propagate_parallel(
+            &mut marker,
+            propagation_condition_parallel,
+            update_func_parallel,
+            &mut initial,
+            &mut mask,
+            num_threads,
+        );
     }
 }

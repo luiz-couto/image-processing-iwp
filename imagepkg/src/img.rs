@@ -214,7 +214,8 @@ mod tests {
         };
 
         assert_eq!(img::is_pixel_in_section((0, 0), section), true);
-        assert_eq!(img::is_pixel_in_section((2, 2), section), true);
+        assert_eq!(img::is_pixel_in_section((2, 2), section), false);
+        assert_eq!(img::is_pixel_in_section((1, 2), section), false);
         assert_eq!(img::is_pixel_in_section((3, 2), section), false);
     }
 }
