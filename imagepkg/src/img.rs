@@ -8,13 +8,6 @@ pub struct PixelT {
     pub value: u8,
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct Section {
-    pub start: (u32, u32),
-    pub width: u32,
-    pub height: u32,
-}
-
 pub enum ConnTypes {
     Four = 4,
     Eight = 8,
@@ -75,82 +68,6 @@ pub fn convert_to_binary(
     return binary_img;
 }
 
-pub fn arrange(img: &image::ImageBuffer<Luma<u8>, Vec<u8>>, num_sections: u32) -> Vec<Section> {
-    let mut sections: Vec<Section> = Vec::new();
-    let columns = (num_sections as f32).sqrt().ceil() as u32;
-    let full_rows = num_sections / columns;
-    let orphans = num_sections % columns;
-
-    let aux = if orphans == 0 {
-        full_rows
-    } else {
-        full_rows + 1
-    };
-
-    let base_width = img.width() / columns;
-    let base_height = img.height() / aux;
-
-    let width_leftover = img.width() % columns;
-    let height_leftover = img.height() % aux;
-
-    for y in 0..full_rows {
-        for x in 0..columns {
-            let width = if x == columns - 1 {
-                base_width + width_leftover
-            } else {
-                base_width
-            };
-
-            let height = if orphans == 0 && y == full_rows - 1 {
-                base_height + height_leftover
-            } else {
-                base_height
-            };
-
-            sections.push(Section {
-                start: (x * base_width, y * base_height),
-                width,
-                height,
-            });
-
-            // println!(
-            //     "({:?}, {:?}), width: {:?}, height: {:?}",
-            //     x * base_width,
-            //     y * base_height,
-            //     width,
-            //     height
-            // );
-        }
-    }
-
-    if orphans > 0 {
-        let orphan_width = img.width() / orphans;
-        let y = full_rows;
-        for x in 0..orphans {
-            let width = if x == orphans - 1 {
-                base_width + width_leftover
-            } else {
-                base_width
-            };
-
-            sections.push(Section {
-                start: (x * orphan_width, y * base_height),
-                width,
-                height: base_height + height_leftover,
-            });
-            // println!(
-            //     "({:?}, {:?}), width: {:?}, height: {:?}",
-            //     x * orphan_width,
-            //     y * base_height,
-            //     width,
-            //     base_height + height_leftover
-            // );
-        }
-    }
-
-    return sections;
-}
-
 // Check if this functin is correct
 pub fn is_pixel_in_section(pixel: (u32, u32), section: &ParallelSection) -> bool {
     if (section.start.0 <= pixel.0)
@@ -199,12 +116,6 @@ mod tests {
         ];
 
         assert_eq!(ngbs, expected);
-    }
-
-    #[test]
-    fn test_arrange() {
-        let img = examples::_gen_same_value_image(200, 37, 0);
-        img::arrange(&img, 4);
     }
 
     #[test]
