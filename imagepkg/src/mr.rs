@@ -261,20 +261,20 @@ mod tests {
 
     #[test]
     fn test_propagation_phase_parallel() {
-        let img_mask = ImageReader::open("./tests/imgs/mr/100-percent-mask.jpg")
-            .unwrap()
-            .decode()
-            .unwrap();
-        let mut mask = img_mask.to_luma8();
+        // let img_mask = ImageReader::open("./tests/imgs/mr/100-percent-mask.jpg")
+        //     .unwrap()
+        //     .decode()
+        //     .unwrap();
+        // let mut mask = img_mask.to_luma8();
 
-        let img_marker = ImageReader::open("./tests/imgs/mr/100-percent-marker.jpg")
-            .unwrap()
-            .decode()
-            .unwrap();
-        let mut marker = img_marker.to_luma8();
+        // let img_marker = ImageReader::open("./tests/imgs/mr/100-percent-marker.jpg")
+        //     .unwrap()
+        //     .decode()
+        //     .unwrap();
+        // let mut marker = img_marker.to_luma8();
 
-        // let mut mask = _gen_big_mask_img();
-        // let mut marker = _gen_big_marker_img();
+        let mut mask = _gen_big_mask_img();
+        let mut marker = _gen_big_marker_img();
 
         //print_image_by_row(&marker);
 
@@ -292,5 +292,44 @@ mod tests {
             &mut mask,
             num_threads,
         );
+    }
+
+    #[test]
+    fn test_get_initial_pixels_parallel() {
+        let num_threads = 8;
+
+        let img_mask = ImageReader::open("./tests/imgs/mr/mask.png")
+            .unwrap()
+            .decode()
+            .unwrap();
+        let mask = img_mask.to_luma8();
+
+        let img_marker = ImageReader::open("./tests/imgs/mr/marker.png")
+            .unwrap()
+            .decode()
+            .unwrap();
+        let mut marker = img_marker.to_luma8();
+
+        let (mut marker_new, mut initial) =
+            get_initial_pixels_parallel(&mask, &mut marker, num_threads);
+
+        let mut marker_new_sections = parallel_img::arrange(&mut marker_new, num_threads);
+
+        let mut exp_sections = parallel_img::arrange(&mut marker, num_threads);
+        let mut exp_queue = HashSet::new();
+        let mut count = 0;
+        for section in &mut exp_sections {
+            let marker_new_sec = marker_new_sections.get_mut(count).unwrap().slice.clone();
+            let exp_sec_initial = get_initial_pixels(&mask, &mut section.slice);
+            for val in exp_sec_initial {
+                exp_queue.insert(section.get_abs_pixel(val.0, val.1).coords);
+            }
+
+            assert_eq!(section.slice, marker_new_sec);
+
+            count += 1;
+        }
+
+        assert_eq!(Vec::from_iter(exp_queue).sort(), initial.sort());
     }
 }
