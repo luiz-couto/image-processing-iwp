@@ -1,6 +1,5 @@
-use image::{imageops, Luma};
-
 use crate::{examples::_gen_same_value_image, PixelT};
+use image::{imageops, Luma};
 
 #[derive(Clone, Debug)]
 pub struct ParallelSection {
@@ -17,7 +16,24 @@ pub struct ParallelImg {
     pub height: u32,
 }
 
-fn arrange(
+pub fn get_full_img(
+    width: u32,
+    height: u32,
+    sections: &Vec<ParallelSection>,
+) -> image::ImageBuffer<Luma<u8>, Vec<u8>> {
+    let mut img = _gen_same_value_image(width, height, 0);
+    for ps in sections {
+        for i in 0..ps.height {
+            for j in 0..ps.width {
+                let pixel = ps.get_abs_pixel(j, i);
+                img.put_pixel(pixel.coords.0, pixel.coords.1, Luma([pixel.value]));
+            }
+        }
+    }
+    return img;
+}
+
+pub fn arrange(
     img: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
     num_sections: u32,
 ) -> Vec<ParallelSection> {
@@ -91,30 +107,6 @@ fn arrange(
     return sections;
 }
 
-impl ParallelImg {
-    pub fn new(img: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>, num_sections: u32) -> Self {
-        ParallelImg {
-            sections: arrange(img, num_sections),
-            witdh: img.width(),
-            height: img.height(),
-        }
-    }
-
-    // check if there's a more efficient way to implement this function
-    pub fn get_full_img(&self) -> image::ImageBuffer<Luma<u8>, Vec<u8>> {
-        let mut img = _gen_same_value_image(self.witdh, self.height, 0);
-        for ps in self.sections.iter() {
-            for i in 0..ps.height {
-                for j in 0..ps.width {
-                    let pixel = ps.get_abs_pixel(j, i);
-                    img.put_pixel(pixel.coords.0, pixel.coords.1, Luma([pixel.value]));
-                }
-            }
-        }
-        return img;
-    }
-}
-
 impl ParallelSection {
     pub fn get_relative_pixel(&self, x: u32, y: u32) -> PixelT {
         PixelT {
@@ -133,15 +125,20 @@ impl ParallelSection {
 
 mod tests {
     #![allow(unused_imports)]
-    use crate::{examples::_gen_seq_img, format::print_image_by_row, parallel_img::*};
+    use crate::{
+        examples::_gen_seq_img,
+        format::print_image_by_row,
+        parallel_img::{self, *},
+    };
 
     #[test]
-    fn test_parallel_img_asseemble() {
+    fn test_parallel_img_assemble() {
         let mut base_img = _gen_seq_img();
 
-        let p_img = ParallelImg::new(&mut base_img, 4);
+        let sections = parallel_img::arrange(&mut base_img, 4);
 
-        let assembled_img = p_img.get_full_img();
+        let assembled_img =
+            parallel_img::get_full_img(base_img.width(), base_img.height(), &sections);
         assert_eq!(base_img, assembled_img);
     }
 }

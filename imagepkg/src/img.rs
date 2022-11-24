@@ -1,6 +1,6 @@
 use image::Luma;
 
-use crate::examples::_gen_same_value_image;
+use crate::{examples::_gen_same_value_image, parallel_img::ParallelSection};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PixelT {
@@ -152,7 +152,7 @@ pub fn arrange(img: &image::ImageBuffer<Luma<u8>, Vec<u8>>, num_sections: u32) -
 }
 
 // Check if this functin is correct
-pub fn is_pixel_in_section(pixel: (u32, u32), section: Section) -> bool {
+pub fn is_pixel_in_section(pixel: (u32, u32), section: &ParallelSection) -> bool {
     if (section.start.0 <= pixel.0)
         && (pixel.0 < section.start.0 + section.width)
         && (section.start.1 <= pixel.1)
@@ -169,7 +169,9 @@ mod tests {
     #![allow(unused_imports)]
 
     use crate::examples;
+    use crate::examples::_gen_example_img;
     use crate::img;
+    use crate::parallel_img;
 
     #[test]
     fn test_get_pixel_neighbours() {
@@ -207,15 +209,16 @@ mod tests {
 
     #[test]
     fn test_is_pixel_in_section() {
-        let section = img::Section {
+        let section = parallel_img::ParallelSection {
             start: (0, 0),
             width: 2,
             height: 2,
+            slice: _gen_example_img(),
         };
 
-        assert_eq!(img::is_pixel_in_section((0, 0), section), true);
-        assert_eq!(img::is_pixel_in_section((2, 2), section), false);
-        assert_eq!(img::is_pixel_in_section((1, 2), section), false);
-        assert_eq!(img::is_pixel_in_section((3, 2), section), false);
+        assert_eq!(img::is_pixel_in_section((0, 0), &section), true);
+        assert_eq!(img::is_pixel_in_section((2, 2), &section), false);
+        assert_eq!(img::is_pixel_in_section((1, 2), &section), false);
+        assert_eq!(img::is_pixel_in_section((3, 2), &section), false);
     }
 }

@@ -151,3 +151,24 @@ pub fn _gen_expected_img() -> ImageBuffer<Luma<u8>, Vec<u8>> {
 
     return base_img;
 }
+
+/*
+Gens the 4 x 4 image below
+01 02 03 04
+05 06 07 08
+09 10 11 12
+13 14 15 16
+*/
+
+pub fn _gen_seq_img() -> ImageBuffer<Luma<u8>, Vec<u8>> {
+    let mut base_img = _gen_same_value_image(4, 4, 0);
+    let mut count: u8 = 1;
+    for i in 0..4 {
+        for j in 0..4 {
+            base_img.put_pixel(j, i, Luma([count]));
+            count += 1;
+        }
+    }
+
+    return base_img;
+}

@@ -1,10 +1,10 @@
-use std::{
-    collections::HashSet,
-    sync::{Arc, Mutex},
-    thread,
-};
+use std::{collections::HashSet, sync::Arc, thread};
 
-use crate::{format::print_image_by_row, img, iwp};
+use crate::{
+    format::print_image_by_row,
+    img, iwp,
+    parallel_img::{self, ParallelImg},
+};
 use image::{imageops, io::Reader as ImageReader, GenericImage, GenericImageView};
 use image::{ImageBuffer, Luma, SubImage};
 
@@ -89,48 +89,44 @@ fn get_initial_pixels_parallel(
     mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
     marker: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
     num_threads: u32,
-) -> Vec<(u32, u32)> {
-    let sections = img::arrange(&marker, num_threads);
+) -> (image::ImageBuffer<Luma<u8>, Vec<u8>>, Vec<(u32, u32)>) {
     let mask_arc = Arc::new(mask.clone());
+    let mut sections = parallel_img::arrange(marker, num_threads);
 
-    let mut handles = vec![];
+    let queue = thread::scope(|s| {
+        let mut handles = vec![];
+        for section in &mut sections {
+            //let mut section = p_img.get_section(idx);
+            let mask_arc_clone = Arc::clone(&mask_arc);
 
-    for section in sections {
-        let mut img_sec = imageops::crop(
-            marker,
-            section.start.0,
-            section.start.1,
-            section.width,
-            section.height,
-        )
-        .to_image();
+            let handle = s.spawn(move || {
+                let mut relative_queue = get_initial_pixels(&mask_arc_clone, &mut section.slice);
+                relative_queue
+                    .iter_mut()
+                    .for_each(|p| *p = (p.0 + section.start.0, p.1 + section.start.1));
+                return relative_queue;
+            });
 
-        let mask_arc_clone = Arc::clone(&mask_arc);
-
-        let handle = thread::spawn(move || {
-            let mut relative_queue = get_initial_pixels(&mask_arc_clone, &mut img_sec);
-            relative_queue
-                .iter_mut()
-                .for_each(|p| *p = (p.0 + section.start.0, p.1 + section.start.1));
-            return relative_queue;
-        });
-
-        handles.push(handle);
-    }
-
-    // Chech if creating a HashSet is really necessary - since it adds a little overhead
-    //let mut queue = vec![];
-    let mut queue = HashSet::new();
-
-    for handle in handles {
-        let sec_q = handle.join().unwrap();
-        for el in sec_q {
-            queue.insert(el);
+            handles.push(handle);
         }
-        //queue.append(&mut sec_q);
-    }
 
-    return Vec::from_iter(queue);
+        // Chech if creating a HashSet is really necessary - since it adds a little overhead
+        let mut queue = HashSet::new();
+
+        for handle in handles {
+            let sec_q = handle.join().unwrap();
+            for el in sec_q {
+                queue.insert(el);
+            }
+            //queue.append(&mut sec_q);
+        }
+
+        return queue;
+    });
+
+    let full_img = parallel_img::get_full_img(marker.width(), marker.height(), &sections);
+
+    return (full_img, Vec::from_iter(queue));
 }
 
 fn propagation_condition(
@@ -151,10 +147,9 @@ fn propagation_condition_parallel(
     _marker: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
     curr_pixel: img::PixelT,
     ngb_pixel: img::PixelT,
-    mask: &mut Arc<Mutex<image::ImageBuffer<Luma<u8>, Vec<u8>>>>,
+    mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
 ) -> bool {
-    let mask_v = mask.lock().unwrap();
-    let mask_ngb = mask_v.get_pixel(ngb_pixel.coords.0, ngb_pixel.coords.1);
+    let mask_ngb = mask.get_pixel(ngb_pixel.coords.0, ngb_pixel.coords.1);
     if (ngb_pixel.value < curr_pixel.value) && (mask_ngb.0[0] != ngb_pixel.value) {
         return true;
     }
@@ -176,10 +171,9 @@ fn update_func_parallel(
     _marker: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
     curr_pixel: img::PixelT,
     ngb_pixel: img::PixelT,
-    mask: &mut Arc<Mutex<image::ImageBuffer<Luma<u8>, Vec<u8>>>>,
+    mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
 ) -> u8 {
-    let mask_v = mask.lock().unwrap();
-    let mask_ngb = mask_v.get_pixel(ngb_pixel.coords.0, ngb_pixel.coords.1);
+    let mask_ngb = mask.get_pixel(ngb_pixel.coords.0, ngb_pixel.coords.1);
     return std::cmp::min(curr_pixel.value, mask_ngb.0[0]);
 }
 
@@ -282,11 +276,16 @@ mod tests {
         // let mut mask = _gen_big_mask_img();
         // let mut marker = _gen_big_marker_img();
 
-        let num_threads = 6;
-        let mut initial = get_initial_pixels_parallel(&mask, &mut marker, num_threads);
+        //print_image_by_row(&marker);
+
+        let num_threads = 8;
+        let (mut marker_new, mut initial) =
+            get_initial_pixels_parallel(&mask, &mut marker, num_threads);
+
+        //print_image_by_row(&markerr);
 
         iwp::propagate_parallel(
-            &mut marker,
+            &mut marker_new,
             propagation_condition_parallel,
             update_func_parallel,
             &mut initial,
