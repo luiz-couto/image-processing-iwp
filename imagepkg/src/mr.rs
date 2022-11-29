@@ -90,17 +90,27 @@ fn get_initial_pixels_parallel(
     marker: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
     num_threads: u32,
 ) -> (image::ImageBuffer<Luma<u8>, Vec<u8>>, Vec<(u32, u32)>) {
-    let mask_arc = Arc::new(mask.clone());
+    //let mask_arc = Arc::new(mask.clone());
     let mut sections = parallel_img::arrange(marker, num_threads);
+    let mask_sections = parallel_img::arrange(&mut mask.clone(), num_threads);
+
+    for section in sections.iter() {
+        println!(
+            "Creating of section {:?}, width = {:?}, height = {:?}",
+            section.start, section.width, section.height
+        );
+    }
 
     let queue = thread::scope(|s| {
         let mut handles = vec![];
+        let mut count = 0;
         for section in &mut sections {
             //let mut section = p_img.get_section(idx);
-            let mask_arc_clone = Arc::clone(&mask_arc);
+            let mask_section_slice = &mask_sections.get(count).unwrap().slice;
 
             let handle = s.spawn(move || {
-                let mut relative_queue = get_initial_pixels(&mask_arc_clone, &mut section.slice);
+                let mut relative_queue =
+                    get_initial_pixels(&mask_section_slice, &mut section.slice);
                 relative_queue
                     .iter_mut()
                     .for_each(|p| *p = (p.0 + section.start.0, p.1 + section.start.1));
@@ -108,6 +118,8 @@ fn get_initial_pixels_parallel(
             });
 
             handles.push(handle);
+
+            count += 1;
         }
 
         // Chech if creating a HashSet is really necessary - since it adds a little overhead
@@ -213,6 +225,7 @@ mod tests {
 
     use crate::examples::*;
     use crate::format;
+    use crate::img::is_pixel_in_section;
     use crate::iwp;
     use crate::mr::*;
 
@@ -260,41 +273,6 @@ mod tests {
     }
 
     #[test]
-    fn test_propagation_phase_parallel() {
-        // let img_mask = ImageReader::open("./tests/imgs/mr/100-percent-mask.jpg")
-        //     .unwrap()
-        //     .decode()
-        //     .unwrap();
-        // let mut mask = img_mask.to_luma8();
-
-        // let img_marker = ImageReader::open("./tests/imgs/mr/100-percent-marker.jpg")
-        //     .unwrap()
-        //     .decode()
-        //     .unwrap();
-        // let mut marker = img_marker.to_luma8();
-
-        let mut mask = _gen_big_mask_img();
-        let mut marker = _gen_big_marker_img();
-
-        //print_image_by_row(&marker);
-
-        let num_threads = 8;
-        let (mut marker_new, mut initial) =
-            get_initial_pixels_parallel(&mask, &mut marker, num_threads);
-
-        //print_image_by_row(&markerr);
-
-        iwp::propagate_parallel(
-            &mut marker_new,
-            propagation_condition_parallel,
-            update_func_parallel,
-            &mut initial,
-            &mut mask,
-            num_threads,
-        );
-    }
-
-    #[test]
     fn test_get_initial_pixels_parallel() {
         let num_threads = 8;
 
@@ -331,5 +309,101 @@ mod tests {
         }
 
         assert_eq!(Vec::from_iter(exp_queue).sort(), initial.sort());
+    }
+
+    #[test]
+    fn test_propagation_phase_parallel() {
+        let num_threads = 8;
+
+        let img_mask = ImageReader::open("./tests/imgs/mr/mask.png")
+            .unwrap()
+            .decode()
+            .unwrap();
+        let mut mask = img_mask.to_luma8();
+
+        let img_marker = ImageReader::open("./tests/imgs/mr/marker.png")
+            .unwrap()
+            .decode()
+            .unwrap();
+        let mut marker = img_marker.to_luma8();
+
+        // did not use the get_initial_pixels function here because it does all the job
+        let mut initial = get_initial_pixels(&mask, &mut marker);
+
+        let mut result = iwp::propagate_parallel(
+            &mut marker,
+            propagation_condition_parallel,
+            update_func_parallel,
+            &mut initial,
+            &mut mask,
+            num_threads,
+        );
+
+        let mut result_sections = parallel_img::arrange(&mut result, num_threads);
+        let mut exp_sections = parallel_img::arrange(&mut marker, num_threads);
+        let mut mask_sections = parallel_img::arrange(&mut mask, num_threads);
+
+        let mut count = 0;
+        for section in &mut exp_sections {
+            let result_sec = result_sections.get_mut(count).unwrap();
+            let result_sec_slice = result_sec.slice.clone();
+            let mut mask_slice = mask_sections.get_mut(count).unwrap().slice.clone();
+
+            let mut exp_sec_initial = vec![];
+
+            for c in initial.clone() {
+                if is_pixel_in_section(c, section) {
+                    exp_sec_initial.push((c.0 - section.start.0, c.1 - section.start.1));
+                }
+            }
+
+            iwp::propagate(
+                &mut section.slice,
+                propagation_condition,
+                update_func,
+                &mut exp_sec_initial,
+                &mut mask_slice,
+            );
+
+            assert_eq!(section.slice, result_sec_slice);
+
+            count += 1;
+        }
+    }
+
+    #[test]
+    fn test_propagation_phase_parallel_time() {
+        let img_mask = ImageReader::open("./tests/imgs/mr/50-percent-mask.jpg")
+            .unwrap()
+            .decode()
+            .unwrap();
+        let mut mask = img_mask.to_luma8();
+
+        let img_marker = ImageReader::open("./tests/imgs/mr/50-percent-marker.jpg")
+            .unwrap()
+            .decode()
+            .unwrap();
+        let mut marker = img_marker.to_luma8();
+
+        //print_image_by_row(&marker);
+
+        let num_threads = 8;
+        let (mut marker_new, mut initial) =
+            get_initial_pixels_parallel(&mask, &mut marker, num_threads);
+
+        //print_image_by_row(&markerr);
+
+        marker_new.save("marker_new.jpg").unwrap();
+
+        let result = iwp::propagate_parallel(
+            &mut marker_new,
+            propagation_condition_parallel,
+            update_func_parallel,
+            &mut initial,
+            &mut mask,
+            num_threads,
+        );
+
+        result.save("result.jpg").unwrap();
     }
 }

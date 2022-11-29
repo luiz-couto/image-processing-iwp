@@ -1,5 +1,5 @@
 use crate::{img, parallel_img};
-use image::Luma;
+use image::{ImageBuffer, Luma};
 use std::sync::Arc;
 use std::thread;
 
@@ -71,7 +71,8 @@ pub fn propagate_parallel<T>(
     queue: &mut Vec<(u32, u32)>,
     aux_structure: &mut T,
     num_threads: u32,
-) where
+) -> ImageBuffer<Luma<u8>, Vec<u8>>
+where
     T: Clone + Send + Sync + 'static,
 {
     let mut parallel_sections: Vec<IWPSection> = Vec::new();
@@ -106,14 +107,9 @@ pub fn propagate_parallel<T>(
                         pixel_coords_abs.1 - section.section.start.1,
                     );
 
-                    let curr_pixel = img::PixelT {
-                        coords: pixel_coords,
-                        value: section
-                            .section
-                            .slice
-                            .get_pixel(pixel_coords.0, pixel_coords.1)
-                            .0[0],
-                    };
+                    let curr_pixel = section
+                        .section
+                        .get_relative_pixel(pixel_coords.0, pixel_coords.1);
 
                     let curr_pixel_abs = img::PixelT {
                         coords: pixel_coords_abs,
@@ -127,42 +123,28 @@ pub fn propagate_parallel<T>(
                     );
 
                     for ngb_coord in pixel_ngbs {
-                        if img::is_pixel_in_section(ngb_coord, section.section) {
-                            let ngb_pixel = img::PixelT {
-                                coords: ngb_coord,
-                                value: section.section.slice.get_pixel(ngb_coord.0, ngb_coord.1).0
-                                    [0],
-                            };
+                        let ngb_pixel_abs = section.section.get_abs_pixel(ngb_coord.0, ngb_coord.1);
 
-                            let ngb_pixel_abs = img::PixelT {
-                                coords: (
-                                    ngb_pixel.coords.0 + section.section.start.0,
-                                    ngb_pixel.coords.1 + section.section.start.1,
-                                ),
-                                value: ngb_pixel.value,
-                            };
-
-                            if propagation_condition(
+                        if propagation_condition(
+                            &section.section.slice,
+                            curr_pixel_abs,
+                            ngb_pixel_abs,
+                            &aux_s,
+                        ) {
+                            let new_value = update_func(
                                 &section.section.slice,
                                 curr_pixel_abs,
                                 ngb_pixel_abs,
                                 &aux_s,
-                            ) {
-                                let new_value = update_func(
-                                    &section.section.slice,
-                                    curr_pixel_abs,
-                                    ngb_pixel_abs,
-                                    &aux_s,
-                                );
+                            );
 
-                                let mut ngb = section
-                                    .section
-                                    .slice
-                                    .get_pixel_mut(ngb_coord.0, ngb_coord.1);
-                                ngb.0[0] = new_value;
+                            let mut ngb = section
+                                .section
+                                .slice
+                                .get_pixel_mut(ngb_coord.0, ngb_coord.1);
+                            ngb.0[0] = new_value;
 
-                                section.queue.push(ngb_pixel_abs.coords);
-                            }
+                            section.queue.push(ngb_pixel_abs.coords);
                         }
                     }
                 }
@@ -178,6 +160,5 @@ pub fn propagate_parallel<T>(
     });
 
     let full_img = parallel_img::get_full_img(base_img.width(), base_img.height(), &sections);
-    //full_img.save(path)
-    //print_image_by_row(&full_img);
+    return full_img;
 }

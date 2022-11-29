@@ -80,12 +80,13 @@ pub fn arrange(
 
     if orphans > 0 {
         let orphan_width = img.width() / orphans;
+        let orphan_width_leftover = img.width() % orphans;
         let y = full_rows;
         for x in 0..orphans {
             let width = if x == orphans - 1 {
-                base_width + width_leftover
+                orphan_width + orphan_width_leftover
             } else {
-                base_width
+                orphan_width
             };
 
             sections.push(ParallelSection {
