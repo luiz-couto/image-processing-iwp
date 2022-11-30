@@ -1,4 +1,4 @@
-use image::Luma;
+use image::{imageops, Luma};
 
 use crate::{examples::_gen_same_value_image, parallel_img::ParallelSection};
 
@@ -81,12 +81,65 @@ pub fn is_pixel_in_section(pixel: (u32, u32), section: &ParallelSection) -> bool
     return false;
 }
 
+pub fn get_upper_border_pixels_coords(
+    img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+) -> Vec<(u32, u32)> {
+    let mut border = vec![];
+    for i in 0..img.width() {
+        for j in 0..1 {
+            border.push((i, j));
+        }
+    }
+
+    return border;
+}
+
+pub fn get_left_border_pixels_coords(
+    img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+) -> Vec<(u32, u32)> {
+    let mut border = vec![];
+    for i in 0..1 {
+        for j in 0..img.height() {
+            border.push((i, j));
+        }
+    }
+
+    return border;
+}
+
+pub fn get_bottom_border_pixels_coords(
+    img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+) -> Vec<(u32, u32)> {
+    let mut border = vec![];
+    for i in 0..img.width() {
+        for j in (img.height() - 1)..img.height() {
+            border.push((i, j));
+        }
+    }
+
+    return border;
+}
+
+pub fn get_right_border_pixels_coords(
+    img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+) -> Vec<(u32, u32)> {
+    let mut border = vec![];
+    for i in (img.width() - 1)..img.width() {
+        for j in 0..img.height() {
+            border.push((i, j));
+        }
+    }
+
+    return border;
+}
+
 mod tests {
 
     #![allow(unused_imports)]
 
     use crate::examples;
     use crate::examples::_gen_example_img;
+    use crate::examples::_gen_seq_img;
     use crate::img;
     use crate::parallel_img;
 
@@ -131,5 +184,49 @@ mod tests {
         assert_eq!(img::is_pixel_in_section((2, 2), &section), false);
         assert_eq!(img::is_pixel_in_section((1, 2), &section), false);
         assert_eq!(img::is_pixel_in_section((3, 2), &section), false);
+    }
+
+    #[test]
+    fn test_get_upper_border_pixels_coords() {
+        let img = _gen_seq_img();
+        let mut upper_border = img::get_upper_border_pixels_coords(&img);
+        let mut expected: Vec<(u32, u32)> = vec![(0, 0), (1, 0), (2, 0), (3, 0)];
+        upper_border.sort();
+        expected.sort();
+
+        assert_eq!(upper_border, expected);
+    }
+
+    #[test]
+    fn test_get_left_border_pixels_coords() {
+        let img = _gen_seq_img();
+        let mut upper_border = img::get_left_border_pixels_coords(&img);
+        let mut expected: Vec<(u32, u32)> = vec![(0, 0), (0, 1), (0, 2), (0, 3)];
+        upper_border.sort();
+        expected.sort();
+
+        assert_eq!(upper_border, expected);
+    }
+
+    #[test]
+    fn test_get_bottom_border_pixels_coords() {
+        let img = _gen_seq_img();
+        let mut upper_border = img::get_bottom_border_pixels_coords(&img);
+        let mut expected: Vec<(u32, u32)> = vec![(0, 3), (1, 3), (2, 3), (3, 3)];
+        upper_border.sort();
+        expected.sort();
+
+        assert_eq!(upper_border, expected);
+    }
+
+    #[test]
+    fn test_get_right_border_pixels_coords() {
+        let img = _gen_seq_img();
+        let mut upper_border = img::get_right_border_pixels_coords(&img);
+        let mut expected: Vec<(u32, u32)> = vec![(3, 0), (3, 1), (3, 2), (3, 3)];
+        upper_border.sort();
+        expected.sort();
+
+        assert_eq!(upper_border, expected);
     }
 }

@@ -308,6 +308,7 @@ mod tests {
             count += 1;
         }
 
+        // WARNING: THIS IS DOING NOTHING -> .sort() returns () -> always true
         assert_eq!(Vec::from_iter(exp_queue).sort(), initial.sort());
     }
 
@@ -387,7 +388,7 @@ mod tests {
 
         //print_image_by_row(&marker);
 
-        let num_threads = 8;
+        let num_threads = 15;
         let (mut marker_new, mut initial) =
             get_initial_pixels_parallel(&mask, &mut marker, num_threads);
 
@@ -405,5 +406,44 @@ mod tests {
         );
 
         result.save("result.jpg").unwrap();
+    }
+
+    #[test]
+    fn test_propagation_phase_parallel_2() {
+        let img_mask = ImageReader::open("./tests/imgs/mr/mask.png")
+            .unwrap()
+            .decode()
+            .unwrap();
+        let mut mask = img_mask.to_luma8();
+
+        let img_marker = ImageReader::open("./tests/imgs/mr/marker.png")
+            .unwrap()
+            .decode()
+            .unwrap();
+        let mut marker = img_marker.to_luma8();
+
+        let num_threads = 15;
+        let (mut marker_new, mut initial) =
+            get_initial_pixels_parallel(&mask, &mut marker, num_threads);
+
+        let result = iwp::propagate_parallel(
+            &mut marker_new,
+            propagation_condition_parallel,
+            update_func_parallel,
+            &mut initial,
+            &mut mask,
+            num_threads,
+        );
+
+        let mut initial = get_initial_pixels(&mask, &mut marker);
+        iwp::propagate(
+            &mut marker,
+            propagation_condition,
+            update_func,
+            &mut initial,
+            &mut mask,
+        );
+
+        assert_eq!(marker, result);
     }
 }
