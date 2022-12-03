@@ -8,4 +8,4 @@ pub mod parallel_img;
 
 pub use crate::dist_transform::{dist_transform, DistTypes};
 pub use crate::img::{convert_to_binary, get_pixel_neighbours, ConnTypes, PixelT};
-pub use crate::mr::morph_reconstruction;
+pub use crate::mr::{morph_reconstruction, morph_reconstruction_parallel};

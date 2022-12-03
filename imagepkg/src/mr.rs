@@ -1,12 +1,6 @@
-use std::{collections::HashSet, sync::Arc, thread};
-
-use crate::{
-    format::print_image_by_row,
-    img, iwp,
-    parallel_img::{self, ParallelImg},
-};
-use image::{imageops, io::Reader as ImageReader, GenericImage, GenericImageView};
-use image::{ImageBuffer, Luma, SubImage};
+use crate::{img, iwp, parallel_img};
+use image::Luma;
+use std::{collections::HashSet, thread};
 
 fn update_pixel(
     pixel_coords: (u32, u32),
@@ -33,17 +27,6 @@ fn update_pixel(
     }
 
     pixel.0[0] = greater;
-}
-
-fn update_pixel_parallel(
-    pixel_coords: (u32, u32),
-    mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
-    marker_sec: &mut SubImage<&mut image::ImageBuffer<Luma<u8>, Vec<u8>>>,
-) {
-    marker_sec.get_pixel(pixel_coords.0, pixel_coords.1);
-    //marker_sec.put_pixel(x, y, pixel)
-    let pixel_ngbs =
-        img::get_pixel_neighbours(marker_sec.inner(), pixel_coords, img::ConnTypes::Eight);
 }
 
 fn get_initial_pixels(
@@ -105,7 +88,6 @@ fn get_initial_pixels_parallel(
         let mut handles = vec![];
         let mut count = 0;
         for section in &mut sections {
-            //let mut section = p_img.get_section(idx);
             let mask_section_slice = &mask_sections.get(count).unwrap().slice;
 
             let handle = s.spawn(move || {
@@ -145,20 +127,6 @@ fn propagation_condition(
     _marker: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
     curr_pixel: img::PixelT<u8>,
     ngb_pixel: img::PixelT<u8>,
-    mask: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
-) -> bool {
-    let mask_ngb = mask.get_pixel(ngb_pixel.coords.0, ngb_pixel.coords.1);
-    if (ngb_pixel.value < curr_pixel.value) && (mask_ngb.0[0] != ngb_pixel.value) {
-        return true;
-    }
-
-    return false;
-}
-
-fn propagation_condition_parallel(
-    _marker: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
-    curr_pixel: img::PixelT<u8>,
-    ngb_pixel: img::PixelT<u8>,
     mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
 ) -> bool {
     let mask_ngb = mask.get_pixel(ngb_pixel.coords.0, ngb_pixel.coords.1);
@@ -170,16 +138,6 @@ fn propagation_condition_parallel(
 }
 
 fn update_func(
-    _marker: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
-    curr_pixel: img::PixelT<u8>,
-    ngb_pixel: img::PixelT<u8>,
-    mask: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
-) -> u8 {
-    let mask_ngb = mask.get_pixel(ngb_pixel.coords.0, ngb_pixel.coords.1);
-    return std::cmp::min(curr_pixel.value, mask_ngb.0[0]);
-}
-
-fn update_func_parallel(
     _marker: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
     curr_pixel: img::PixelT<u8>,
     ngb_pixel: img::PixelT<u8>,
@@ -203,21 +161,22 @@ pub fn morph_reconstruction(
     );
 }
 
-// pub fn morph_reconstruction_parallel(
-//     mask: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
-//     marker: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
-// ) {
-//     let num_threads: u32 = 2;
-//     let mut initial_queue = get_initial_pixels(&mask, marker);
-//     iwp::propagate_parallel(
-//         marker,
-//         propagation_condition,
-//         update_func,
-//         &mut initial_queue,
-//         mask,
-//         num_threads,
-//     );
-// }
+pub fn morph_reconstruction_parallel(
+    mask: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
+    marker: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
+    num_threads: u32,
+) -> image::ImageBuffer<image::Luma<u8>, Vec<u8>> {
+    let (mut base_img, mut initial_queue) = get_initial_pixels_parallel(&mask, marker, num_threads);
+    let result = iwp::propagate_parallel(
+        &mut base_img,
+        propagation_condition,
+        update_func,
+        &mut initial_queue,
+        mask,
+        num_threads,
+    );
+    return result;
+}
 
 mod tests {
 
@@ -230,6 +189,7 @@ mod tests {
     use crate::img::is_pixel_in_section;
     use crate::iwp;
     use crate::mr::*;
+    use image::io::Reader as ImageReader;
 
     #[test]
     fn test_get_initial_pixels() {
@@ -335,8 +295,8 @@ mod tests {
 
         let mut result = iwp::propagate_parallel(
             &mut marker,
-            propagation_condition_parallel,
-            update_func_parallel,
+            propagation_condition,
+            update_func,
             &mut initial,
             &mut mask,
             num_threads,
@@ -400,8 +360,8 @@ mod tests {
 
         let result = iwp::propagate_parallel(
             &mut marker_new,
-            propagation_condition_parallel,
-            update_func_parallel,
+            propagation_condition,
+            update_func,
             &mut initial,
             &mut mask,
             num_threads,
@@ -432,8 +392,8 @@ mod tests {
 
         let result = iwp::propagate_parallel(
             &mut marker_new,
-            propagation_condition_parallel,
-            update_func_parallel,
+            propagation_condition,
+            update_func,
             &mut initial,
             &mut mask,
             num_threads,

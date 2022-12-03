@@ -96,7 +96,7 @@ fn propagation_condition(
     img: &image::ImageBuffer<Luma<u32>, Vec<u32>>,
     curr_pixel: img::PixelT<u32>,
     ngb_pixel: img::PixelT<u32>,
-    dist_func: &mut DistFunc,
+    dist_func: &DistFunc,
 ) -> bool {
     let vr_p = get_two_dimensions_coords(img, curr_pixel.value);
     let vr_q = get_two_dimensions_coords(img, ngb_pixel.value);
@@ -108,7 +108,7 @@ fn update_func(
     _img: &image::ImageBuffer<Luma<u32>, Vec<u32>>,
     curr_pixel: img::PixelT<u32>,
     _ngb_pixel: img::PixelT<u32>,
-    _dist_func: &mut DistFunc,
+    _dist_func: &DistFunc,
 ) -> u32 {
     return curr_pixel.value;
 }
@@ -117,7 +117,7 @@ fn get_final_dist_img(
     width: u32,
     height: u32,
     vr_diagram: &mut image::ImageBuffer<Luma<u32>, Vec<u32>>,
-    dist_func: &mut DistFunc,
+    dist_func: &DistFunc,
 ) -> image::ImageBuffer<Luma<u8>, Vec<u8>> {
     let mut img = _gen_same_value_image(width, height, 0);
     for i in 0..height {
@@ -140,7 +140,7 @@ pub fn dist_transform(
     let mut vr_diagram = ImageBuffer::new(img.width(), img.height());
     let mut queue = get_initial_pixels(img, &mut vr_diagram);
 
-    let mut dist_func = match dist_type {
+    let dist_func = match dist_type {
         DistTypes::Euclidean => aprox_euclidean_distance,
         DistTypes::Chessboard => chessboard_distance,
         DistTypes::CityBlock => city_block_distance,
@@ -151,10 +151,10 @@ pub fn dist_transform(
         propagation_condition,
         update_func,
         &mut queue,
-        &mut dist_func,
+        &dist_func,
     );
 
-    return get_final_dist_img(img.width(), img.height(), &mut vr_diagram, &mut dist_func);
+    return get_final_dist_img(img.width(), img.height(), &mut vr_diagram, &dist_func);
 }
 
 mod tests {

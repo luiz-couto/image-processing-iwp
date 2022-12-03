@@ -1,4 +1,4 @@
-use image::{imageops, Luma, Primitive};
+use image::{Luma, Primitive};
 
 use crate::{examples::_gen_same_value_image, parallel_img::ParallelSection};
 
