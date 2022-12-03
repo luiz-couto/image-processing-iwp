@@ -157,6 +157,32 @@ pub fn dist_transform(
     return get_final_dist_img(img.width(), img.height(), &mut vr_diagram, &dist_func);
 }
 
+pub fn dist_transform_parallel(
+    img: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
+    dist_type: DistTypes,
+    num_threads: u32,
+) -> image::ImageBuffer<Luma<u8>, Vec<u8>> {
+    let mut vr_diagram = ImageBuffer::new(img.width(), img.height());
+    let mut queue = get_initial_pixels(img, &mut vr_diagram);
+
+    let dist_func = match dist_type {
+        DistTypes::Euclidean => aprox_euclidean_distance,
+        DistTypes::Chessboard => chessboard_distance,
+        DistTypes::CityBlock => city_block_distance,
+    };
+
+    let mut result = iwp::propagate_parallel(
+        &mut vr_diagram,
+        propagation_condition,
+        update_func,
+        &mut queue,
+        &dist_func,
+        num_threads,
+    );
+
+    return get_final_dist_img(img.width(), img.height(), &mut result, &dist_func);
+}
+
 mod tests {
 
     #![allow(unused_imports)]

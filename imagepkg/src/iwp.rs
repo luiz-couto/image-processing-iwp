@@ -70,7 +70,7 @@ pub fn propagate_parallel<T, P: Primitive + Send + 'static>(
         aux_structure: &T,
     ) -> P,
     queue: &mut Vec<(u32, u32)>,
-    aux_structure: &mut T,
+    aux_structure: &T,
     num_threads: u32,
 ) -> ImageBuffer<Luma<P>, Vec<P>>
 where

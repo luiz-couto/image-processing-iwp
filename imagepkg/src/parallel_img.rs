@@ -1,4 +1,4 @@
-use crate::{examples::_gen_same_value_image, PixelT};
+use crate::PixelT;
 use image::{imageops, ImageBuffer, Luma, Primitive};
 
 #[derive(Clone, Debug)]

@@ -1,6 +1,8 @@
-use image::Luma;
+use image::{Luma, Primitive};
 
-pub fn print_image_by_row(img: &image::ImageBuffer<Luma<u8>, Vec<u8>>) {
+pub fn print_image_by_row<P: Primitive + std::fmt::Debug>(
+    img: &image::ImageBuffer<Luma<P>, Vec<P>>,
+) {
     for row in img.rows() {
         print!("[");
         for pixel in row {
