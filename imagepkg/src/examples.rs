@@ -1,7 +1,11 @@
-use image::{GrayImage, ImageBuffer, Luma};
+use image::{ImageBuffer, Luma, Primitive};
 
-pub fn _gen_same_value_image(width: u32, height: u32, value: u8) -> ImageBuffer<Luma<u8>, Vec<u8>> {
-    let mut img = GrayImage::new(width, height);
+pub fn _gen_same_value_image<P: Primitive>(
+    width: u32,
+    height: u32,
+    value: P,
+) -> ImageBuffer<Luma<P>, Vec<P>> {
+    let mut img = ImageBuffer::from_pixel(width, height, Luma([value]));
     for i in 0..width {
         for j in 0..height {
             img.put_pixel(i, j, Luma([value]))

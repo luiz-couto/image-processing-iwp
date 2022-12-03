@@ -1,27 +1,27 @@
 use crate::{examples::_gen_same_value_image, PixelT};
-use image::{imageops, Luma};
+use image::{imageops, ImageBuffer, Luma, Primitive};
 
 #[derive(Clone, Debug)]
-pub struct ParallelSection {
+pub struct ParallelSection<P: Primitive> {
     pub start: (u32, u32),
     pub width: u32,
     pub height: u32,
-    pub slice: image::ImageBuffer<Luma<u8>, Vec<u8>>,
+    pub slice: image::ImageBuffer<Luma<P>, Vec<P>>,
 }
 
 #[derive(Clone, Debug)]
-pub struct ParallelImg {
-    pub sections: Vec<ParallelSection>,
+pub struct ParallelImg<P: Primitive> {
+    pub sections: Vec<ParallelSection<P>>,
     pub witdh: u32,
     pub height: u32,
 }
 
-pub fn get_full_img(
+pub fn get_full_img<P: Primitive>(
     width: u32,
     height: u32,
-    sections: &Vec<ParallelSection>,
-) -> image::ImageBuffer<Luma<u8>, Vec<u8>> {
-    let mut img = _gen_same_value_image(width, height, 0);
+    sections: &Vec<ParallelSection<P>>,
+) -> image::ImageBuffer<Luma<P>, Vec<P>> {
+    let mut img: ImageBuffer<Luma<P>, Vec<P>> = ImageBuffer::new(width, height);
     for ps in sections {
         for i in 0..ps.height {
             for j in 0..ps.width {
@@ -33,11 +33,11 @@ pub fn get_full_img(
     return img;
 }
 
-pub fn arrange(
-    img: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
+pub fn arrange<P: Primitive + 'static>(
+    img: &mut image::ImageBuffer<Luma<P>, Vec<P>>,
     num_sections: u32,
-) -> Vec<ParallelSection> {
-    let mut sections: Vec<ParallelSection> = Vec::new();
+) -> Vec<ParallelSection<P>> {
+    let mut sections: Vec<ParallelSection<P>> = Vec::new();
     let columns = (num_sections as f32).sqrt().ceil() as u32;
     let full_rows = num_sections / columns;
     let orphans = num_sections % columns;
@@ -108,15 +108,15 @@ pub fn arrange(
     return sections;
 }
 
-impl ParallelSection {
-    pub fn get_relative_pixel(&self, x: u32, y: u32) -> PixelT {
+impl<P: Primitive> ParallelSection<P> {
+    pub fn get_relative_pixel(&self, x: u32, y: u32) -> PixelT<P> {
         PixelT {
             coords: (x, y),
             value: self.slice.get_pixel(x, y).0[0],
         }
     }
 
-    pub fn get_abs_pixel(&self, x: u32, y: u32) -> PixelT {
+    pub fn get_abs_pixel(&self, x: u32, y: u32) -> PixelT<P> {
         PixelT {
             coords: (x + self.start.0, y + self.start.1),
             value: self.slice.get_pixel(x, y).0[0],

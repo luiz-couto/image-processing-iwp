@@ -143,8 +143,8 @@ fn get_initial_pixels_parallel(
 
 fn propagation_condition(
     _marker: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
-    curr_pixel: img::PixelT,
-    ngb_pixel: img::PixelT,
+    curr_pixel: img::PixelT<u8>,
+    ngb_pixel: img::PixelT<u8>,
     mask: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
 ) -> bool {
     let mask_ngb = mask.get_pixel(ngb_pixel.coords.0, ngb_pixel.coords.1);
@@ -157,8 +157,8 @@ fn propagation_condition(
 
 fn propagation_condition_parallel(
     _marker: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
-    curr_pixel: img::PixelT,
-    ngb_pixel: img::PixelT,
+    curr_pixel: img::PixelT<u8>,
+    ngb_pixel: img::PixelT<u8>,
     mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
 ) -> bool {
     let mask_ngb = mask.get_pixel(ngb_pixel.coords.0, ngb_pixel.coords.1);
@@ -171,8 +171,8 @@ fn propagation_condition_parallel(
 
 fn update_func(
     _marker: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
-    curr_pixel: img::PixelT,
-    ngb_pixel: img::PixelT,
+    curr_pixel: img::PixelT<u8>,
+    ngb_pixel: img::PixelT<u8>,
     mask: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
 ) -> u8 {
     let mask_ngb = mask.get_pixel(ngb_pixel.coords.0, ngb_pixel.coords.1);
@@ -181,8 +181,8 @@ fn update_func(
 
 fn update_func_parallel(
     _marker: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
-    curr_pixel: img::PixelT,
-    ngb_pixel: img::PixelT,
+    curr_pixel: img::PixelT<u8>,
+    ngb_pixel: img::PixelT<u8>,
     mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
 ) -> u8 {
     let mask_ngb = mask.get_pixel(ngb_pixel.coords.0, ngb_pixel.coords.1);

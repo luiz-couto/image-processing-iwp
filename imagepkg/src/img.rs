@@ -1,11 +1,11 @@
-use image::{imageops, Luma};
+use image::{imageops, Luma, Primitive};
 
 use crate::{examples::_gen_same_value_image, parallel_img::ParallelSection};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct PixelT {
+pub struct PixelT<P: Primitive> {
     pub coords: (u32, u32),
-    pub value: u8,
+    pub value: P,
 }
 
 pub enum ConnTypes {
@@ -13,8 +13,8 @@ pub enum ConnTypes {
     Eight = 8,
 }
 
-pub fn get_pixel_neighbours(
-    img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+pub fn get_pixel_neighbours<P: Primitive>(
+    img: &image::ImageBuffer<Luma<P>, Vec<P>>,
     coords: (u32, u32),
     conn: ConnTypes,
 ) -> Vec<(u32, u32)> {
@@ -69,7 +69,7 @@ pub fn convert_to_binary(
 }
 
 // Check if this functin is correct
-pub fn is_pixel_in_section(pixel: (u32, u32), section: &ParallelSection) -> bool {
+pub fn is_pixel_in_section<P: Primitive>(pixel: (u32, u32), section: &ParallelSection<P>) -> bool {
     if (section.start.0 <= pixel.0)
         && (pixel.0 < section.start.0 + section.width)
         && (section.start.1 <= pixel.1)
@@ -81,8 +81,8 @@ pub fn is_pixel_in_section(pixel: (u32, u32), section: &ParallelSection) -> bool
     return false;
 }
 
-pub fn get_upper_border_pixels_coords(
-    img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+pub fn get_upper_border_pixels_coords<P: Primitive>(
+    img: &image::ImageBuffer<Luma<P>, Vec<P>>,
 ) -> Vec<(u32, u32)> {
     let mut border = vec![];
     for i in 0..img.width() {
@@ -94,8 +94,8 @@ pub fn get_upper_border_pixels_coords(
     return border;
 }
 
-pub fn get_left_border_pixels_coords(
-    img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+pub fn get_left_border_pixels_coords<P: Primitive>(
+    img: &image::ImageBuffer<Luma<P>, Vec<P>>,
 ) -> Vec<(u32, u32)> {
     let mut border = vec![];
     for i in 0..1 {
@@ -107,8 +107,8 @@ pub fn get_left_border_pixels_coords(
     return border;
 }
 
-pub fn get_bottom_border_pixels_coords(
-    img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+pub fn get_bottom_border_pixels_coords<P: Primitive>(
+    img: &image::ImageBuffer<Luma<P>, Vec<P>>,
 ) -> Vec<(u32, u32)> {
     let mut border = vec![];
     for i in 0..img.width() {
@@ -120,8 +120,8 @@ pub fn get_bottom_border_pixels_coords(
     return border;
 }
 
-pub fn get_right_border_pixels_coords(
-    img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+pub fn get_right_border_pixels_coords<P: Primitive>(
+    img: &image::ImageBuffer<Luma<P>, Vec<P>>,
 ) -> Vec<(u32, u32)> {
     let mut border = vec![];
     for i in (img.width() - 1)..img.width() {

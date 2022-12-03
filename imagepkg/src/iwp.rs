@@ -1,29 +1,29 @@
 use crate::parallel_img::ParallelSection;
 use crate::{img, parallel_img};
-use image::{ImageBuffer, Luma};
+use image::{ImageBuffer, Luma, Primitive};
 use std::sync::Arc;
 use std::thread;
 
 #[derive(Debug)]
-struct IWPSection<'a> {
-    section: &'a mut parallel_img::ParallelSection,
+struct IWPSection<'a, P: Primitive> {
+    section: &'a mut parallel_img::ParallelSection<P>,
     queue: Vec<(u32, u32)>,
 }
 
-pub fn propagate_2<T>(
-    base_img: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
+pub fn propagate_2<T, P: Primitive>(
+    base_img: &mut image::ImageBuffer<Luma<P>, Vec<P>>,
     propagation_condition: fn(
-        img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
-        curr_pixel: img::PixelT,
-        ngb_pixel: img::PixelT,
+        img: &image::ImageBuffer<Luma<P>, Vec<P>>,
+        curr_pixel: img::PixelT<P>,
+        ngb_pixel: img::PixelT<P>,
         aux_structure: &T,
     ) -> bool,
     update_func: fn(
-        img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
-        curr_pixel: img::PixelT,
-        ngb_pixel: img::PixelT,
+        img: &image::ImageBuffer<Luma<P>, Vec<P>>,
+        curr_pixel: img::PixelT<P>,
+        ngb_pixel: img::PixelT<P>,
         aux_structure: &T,
-    ) -> u8,
+    ) -> P,
     queue: &mut Vec<(u32, u32)>,
     aux_structure: &T,
 ) where
@@ -55,20 +55,20 @@ pub fn propagate_2<T>(
     }
 }
 
-pub fn propagate<T>(
-    base_img: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
+pub fn propagate<T, P: Primitive>(
+    base_img: &mut image::ImageBuffer<Luma<P>, Vec<P>>,
     propagation_condition: fn(
-        img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
-        curr_pixel: img::PixelT,
-        ngb_pixel: img::PixelT,
+        img: &image::ImageBuffer<Luma<P>, Vec<P>>,
+        curr_pixel: img::PixelT<P>,
+        ngb_pixel: img::PixelT<P>,
         aux_structure: &mut T,
     ) -> bool,
     update_func: fn(
-        img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
-        curr_pixel: img::PixelT,
-        ngb_pixel: img::PixelT,
+        img: &image::ImageBuffer<Luma<P>, Vec<P>>,
+        curr_pixel: img::PixelT<P>,
+        ngb_pixel: img::PixelT<P>,
         aux_structure: &mut T,
-    ) -> u8,
+    ) -> P,
     queue: &mut Vec<(u32, u32)>,
     aux_structure: &mut T,
 ) where
@@ -100,28 +100,28 @@ pub fn propagate<T>(
     }
 }
 
-pub fn propagate_parallel<T>(
-    base_img: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
+pub fn propagate_parallel<T, P: Primitive + Send + 'static>(
+    base_img: &mut image::ImageBuffer<Luma<P>, Vec<P>>,
     propagation_condition: fn(
-        img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
-        curr_pixel: img::PixelT,
-        ngb_pixel: img::PixelT,
+        img: &image::ImageBuffer<Luma<P>, Vec<P>>,
+        curr_pixel: img::PixelT<P>,
+        ngb_pixel: img::PixelT<P>,
         aux_structure: &T,
     ) -> bool,
     update_func: fn(
-        img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
-        curr_pixel: img::PixelT,
-        ngb_pixel: img::PixelT,
+        img: &image::ImageBuffer<Luma<P>, Vec<P>>,
+        curr_pixel: img::PixelT<P>,
+        ngb_pixel: img::PixelT<P>,
         aux_structure: &T,
-    ) -> u8,
+    ) -> P,
     queue: &mut Vec<(u32, u32)>,
     aux_structure: &mut T,
     num_threads: u32,
-) -> ImageBuffer<Luma<u8>, Vec<u8>>
+) -> ImageBuffer<Luma<P>, Vec<P>>
 where
     T: Clone + Send + Sync + 'static,
 {
-    let mut parallel_sections: Vec<IWPSection> = Vec::new();
+    let mut parallel_sections: Vec<IWPSection<P>> = Vec::new();
     let mut sections = parallel_img::arrange(base_img, num_threads);
 
     for section in &mut sections {
@@ -226,9 +226,9 @@ where
     return full_img;
 }
 
-fn get_section_active_borders(
-    base_img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
-    section: &ParallelSection,
+fn get_section_active_borders<P: Primitive>(
+    base_img: &image::ImageBuffer<Luma<P>, Vec<P>>,
+    section: &ParallelSection<P>,
 ) -> Vec<(u32, u32)> {
     let mut border_pixels = vec![];
     let x = section.start.0;
