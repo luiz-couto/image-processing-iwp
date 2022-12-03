@@ -223,6 +223,8 @@ mod tests {
 
     #![allow(unused_imports)]
 
+    use std::time::Instant;
+
     use crate::examples::*;
     use crate::format;
     use crate::img::is_pixel_in_section;
@@ -410,19 +412,21 @@ mod tests {
 
     #[test]
     fn test_propagation_phase_parallel_2() {
-        let img_mask = ImageReader::open("./tests/imgs/mr/mask.png")
+        let now = Instant::now();
+
+        let img_mask = ImageReader::open("./tests/imgs/mr/50-percent-mask.jpg")
             .unwrap()
             .decode()
             .unwrap();
         let mut mask = img_mask.to_luma8();
 
-        let img_marker = ImageReader::open("./tests/imgs/mr/marker.png")
+        let img_marker = ImageReader::open("./tests/imgs/mr/50-percent-marker.jpg")
             .unwrap()
             .decode()
             .unwrap();
         let mut marker = img_marker.to_luma8();
 
-        let num_threads = 15;
+        let num_threads = 12;
         let (mut marker_new, mut initial) =
             get_initial_pixels_parallel(&mask, &mut marker, num_threads);
 
@@ -435,6 +439,9 @@ mod tests {
             num_threads,
         );
 
+        println!("parallel = {:?}", now.elapsed().as_secs_f32());
+        let now_2 = Instant::now();
+
         let mut initial = get_initial_pixels(&mask, &mut marker);
         iwp::propagate(
             &mut marker,
@@ -443,6 +450,8 @@ mod tests {
             &mut initial,
             &mut mask,
         );
+
+        println!("sequential = {:?}", now_2.elapsed().as_secs_f32());
 
         assert_eq!(marker, result);
     }
