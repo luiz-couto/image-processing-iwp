@@ -1,6 +1,9 @@
 use crate::{img, iwp, parallel_img};
 use image::Luma;
-use std::{collections::HashSet, thread};
+use std::{
+    collections::{HashSet, VecDeque},
+    thread,
+};
 
 fn update_pixel(
     pixel_coords: (u32, u32),
@@ -32,7 +35,7 @@ fn update_pixel(
 fn get_initial_pixels(
     mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
     marker: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
-) -> Vec<(u32, u32)> {
+) -> VecDeque<(u32, u32)> {
     let width = marker.width();
     let height = marker.height();
     let mut queue = HashSet::new();
@@ -64,7 +67,7 @@ fn get_initial_pixels(
         }
     }
 
-    let queue = Vec::from_iter(queue); //check complexity of this operation later
+    let queue = VecDeque::from_iter(queue); //check complexity of this operation later
     return queue;
 }
 
@@ -72,7 +75,7 @@ fn get_initial_pixels_parallel(
     mask: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
     marker: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
     num_threads: u32,
-) -> (image::ImageBuffer<Luma<u8>, Vec<u8>>, Vec<(u32, u32)>) {
+) -> (image::ImageBuffer<Luma<u8>, Vec<u8>>, VecDeque<(u32, u32)>) {
     //let mask_arc = Arc::new(mask.clone());
     let mut sections = parallel_img::arrange(marker, num_threads);
     let mask_sections = parallel_img::arrange(&mut mask.clone(), num_threads);
@@ -120,7 +123,7 @@ fn get_initial_pixels_parallel(
 
     let full_img = parallel_img::get_full_img(marker.width(), marker.height(), &sections);
 
-    return (full_img, Vec::from_iter(queue));
+    return (full_img, VecDeque::from_iter(queue));
 }
 
 fn propagation_condition(
@@ -198,7 +201,7 @@ mod tests {
         let mut marker = _gen_same_value_image(6, 6, 0);
         marker.put_pixel(4, 4, Luma([1]));
 
-        let mut initial = get_initial_pixels(&mask, &mut marker);
+        let mut initial = Vec::from_iter(get_initial_pixels(&mask, &mut marker));
         let mut expected = vec![(1, 1), (2, 1), (2, 2), (1, 2)];
 
         initial.sort();
@@ -213,12 +216,12 @@ mod tests {
         let mut marker = _gen_big_marker_img();
 
         // did not use the get_initial_pixels function here because it does all the job
-        let mut initial: Vec<(u32, u32)> = Vec::new();
+        let mut initial: VecDeque<(u32, u32)> = VecDeque::new();
         for i in 0..10 {
             for j in 0..10 {
                 let pixel = marker.get_pixel(i, j);
                 if pixel.0[0] != 8 {
-                    initial.push((i, j));
+                    initial.push_back((i, j));
                 }
             }
         }
@@ -271,7 +274,10 @@ mod tests {
         }
 
         // WARNING: THIS IS DOING NOTHING -> .sort() returns () -> always true
-        assert_eq!(Vec::from_iter(exp_queue).sort(), initial.sort());
+        assert_eq!(
+            Vec::from_iter(exp_queue).sort(),
+            Vec::from_iter(initial).sort()
+        );
     }
 
     #[test]
@@ -312,11 +318,11 @@ mod tests {
             let result_sec_slice = result_sec.slice.clone();
             let mut mask_slice = mask_sections.get_mut(count).unwrap().slice.clone();
 
-            let mut exp_sec_initial = vec![];
+            let mut exp_sec_initial = VecDeque::new();
 
             for c in initial.clone() {
                 if is_pixel_in_section(c, section) {
-                    exp_sec_initial.push((c.0 - section.start.0, c.1 - section.start.1));
+                    exp_sec_initial.push_back((c.0 - section.start.0, c.1 - section.start.1));
                 }
             }
 

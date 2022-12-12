@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 
 use image::{ImageBuffer, Luma};
 
@@ -53,7 +53,7 @@ fn get_two_dimensions_coords(
 fn get_initial_pixels(
     img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
     vr_diagram: &mut image::ImageBuffer<Luma<u32>, Vec<u32>>,
-) -> Vec<(u32, u32)> {
+) -> VecDeque<(u32, u32)> {
     let width = img.width();
     let height = img.height();
     let mut queue = HashSet::new();
@@ -88,7 +88,7 @@ fn get_initial_pixels(
         }
     }
 
-    let queue = Vec::from_iter(queue); //check complexity of this operation later
+    let queue = VecDeque::from_iter(queue); //check complexity of this operation later
     return queue;
 }
 
@@ -206,7 +206,7 @@ mod tests {
 
         img.put_pixel(1, 1, Luma([1]));
 
-        let mut queue = get_initial_pixels(&img, &mut vr_diagram);
+        let queue = get_initial_pixels(&img, &mut vr_diagram);
         let mut expected: Vec<(u32, u32)> = vec![
             (0, 2),
             (2, 1),
@@ -218,7 +218,7 @@ mod tests {
             (0, 0),
         ];
 
-        assert_eq!(queue.sort(), expected.sort());
+        assert_eq!(Vec::from_iter(queue).sort(), expected.sort());
 
         let p_value = vr_diagram.get_pixel(1, 1).0[0];
         assert_eq!(p_value, INF_PIXEL);
