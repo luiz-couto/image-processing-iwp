@@ -1,12 +1,12 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashSet, VecDeque};
 
-use image::Luma;
+use image::{ImageBuffer, Luma};
 
 use crate::{examples::_gen_same_value_image, img, iwp};
 
 const BG: u8 = 0;
 const FR: u8 = 1;
-const INF_PIXEL: (u32, u32) = (u32::MAX, u32::MAX);
+const INF_PIXEL: u32 = u32::MAX;
 
 #[derive(Clone)]
 pub enum DistTypes {
@@ -15,11 +15,7 @@ pub enum DistTypes {
     Chessboard,
 }
 
-#[derive(Clone)]
-struct DistTransform {
-    dist_func: fn(p1: (u32, u32), p2: (u32, u32)) -> u32,
-    vr_diagram: HashMap<(u32, u32), (u32, u32)>,
-}
+type DistFunc = fn(p1: (u32, u32), p2: (u32, u32)) -> u32;
 
 fn aprox_euclidean_distance(p1: (u32, u32), p2: (u32, u32)) -> u32 {
     let exp = ((p1.0 as f64 - p2.0 as f64).powi(2) + (p1.1 as f64 - p2.1 as f64).powi(2)).sqrt();
@@ -40,10 +36,24 @@ fn chessboard_distance(p1: (u32, u32), p2: (u32, u32)) -> u32 {
     return exp as u32;
 }
 
+fn get_one_dimension_coords(
+    img: &image::ImageBuffer<Luma<u32>, Vec<u32>>,
+    coords: (u32, u32),
+) -> u32 {
+    return (coords.1 * img.width()) + coords.0;
+}
+
+fn get_two_dimensions_coords(
+    img: &image::ImageBuffer<Luma<u32>, Vec<u32>>,
+    coords: u32,
+) -> (u32, u32) {
+    return (coords % img.width(), coords / img.width());
+}
+
 fn get_initial_pixels(
     img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
-    vr_diagram: &mut HashMap<(u32, u32), (u32, u32)>,
-) -> Vec<(u32, u32)> {
+    vr_diagram: &mut image::ImageBuffer<Luma<u32>, Vec<u32>>,
+) -> VecDeque<(u32, u32)> {
     let width = img.width();
     let height = img.height();
     let mut queue = HashSet::new();
@@ -55,7 +65,11 @@ fn get_initial_pixels(
             let pixel_value = curr_pixel.0[0];
 
             if pixel_value == BG {
-                vr_diagram.insert(pixel_coords, pixel_coords);
+                vr_diagram.put_pixel(
+                    pixel_coords.0,
+                    pixel_coords.1,
+                    Luma([get_one_dimension_coords(vr_diagram, pixel_coords)]),
+                );
                 let pixel_ngbs =
                     img::get_pixel_neighbours(img, pixel_coords, img::ConnTypes::Eight);
 
@@ -70,49 +84,47 @@ fn get_initial_pixels(
                 continue;
             }
 
-            vr_diagram.insert(pixel_coords, INF_PIXEL);
+            vr_diagram.put_pixel(pixel_coords.0, pixel_coords.1, Luma([INF_PIXEL]));
         }
     }
 
-    let queue = Vec::from_iter(queue); //check complexity of this operation later
+    let queue = VecDeque::from_iter(queue); //check complexity of this operation later
     return queue;
 }
 
 fn propagation_condition(
-    _img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
-    curr_pixel: img::PixelT,
-    ngb_pixel: img::PixelT,
-    dist_struct: &mut DistTransform,
+    img: &image::ImageBuffer<Luma<u32>, Vec<u32>>,
+    curr_pixel: img::PixelT<u32>,
+    ngb_pixel: img::PixelT<u32>,
+    dist_func: &DistFunc,
 ) -> bool {
-    let vr_p = dist_struct.vr_diagram.get(&curr_pixel.coords).unwrap();
-    let vr_q = dist_struct.vr_diagram.get(&ngb_pixel.coords).unwrap();
+    let vr_p = get_two_dimensions_coords(img, curr_pixel.value);
+    let vr_q = get_two_dimensions_coords(img, ngb_pixel.value);
 
-    return (dist_struct.dist_func)(ngb_pixel.coords, *vr_p)
-        < (dist_struct.dist_func)(ngb_pixel.coords, *vr_q);
+    return dist_func(ngb_pixel.coords, vr_p) < dist_func(ngb_pixel.coords, vr_q);
 }
 
 fn update_func(
-    _img: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
-    curr_pixel: img::PixelT,
-    ngb_pixel: img::PixelT,
-    dist_struct: &mut DistTransform,
-) -> u8 {
-    let vr_p = dist_struct.vr_diagram.get(&curr_pixel.coords).unwrap();
-    dist_struct.vr_diagram.insert(ngb_pixel.coords, *vr_p);
-    return ngb_pixel.value;
+    _img: &image::ImageBuffer<Luma<u32>, Vec<u32>>,
+    curr_pixel: img::PixelT<u32>,
+    _ngb_pixel: img::PixelT<u32>,
+    _dist_func: &DistFunc,
+) -> u32 {
+    return curr_pixel.value;
 }
 
 fn get_final_dist_img(
     width: u32,
     height: u32,
-    dist_struct: &mut DistTransform,
+    vr_diagram: &mut image::ImageBuffer<Luma<u32>, Vec<u32>>,
+    dist_func: &DistFunc,
 ) -> image::ImageBuffer<Luma<u8>, Vec<u8>> {
     let mut img = _gen_same_value_image(width, height, 0);
     for i in 0..height {
         for j in 0..width {
             let pixel_coords = (j, i);
-            let vr_p = dist_struct.vr_diagram.get(&pixel_coords).unwrap();
-            let value = (dist_struct.dist_func)(pixel_coords, *vr_p);
+            let vr_p = get_two_dimensions_coords(vr_diagram, vr_diagram.get_pixel(j, i).0[0]);
+            let value = dist_func(pixel_coords, vr_p);
 
             img.put_pixel(pixel_coords.0, pixel_coords.1, Luma([value as u8]));
         }
@@ -125,7 +137,7 @@ pub fn dist_transform(
     img: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
     dist_type: DistTypes,
 ) -> image::ImageBuffer<Luma<u8>, Vec<u8>> {
-    let mut vr_diagram = HashMap::<(u32, u32), (u32, u32)>::new();
+    let mut vr_diagram = ImageBuffer::new(img.width(), img.height());
     let mut queue = get_initial_pixels(img, &mut vr_diagram);
 
     let dist_func = match dist_type {
@@ -134,20 +146,41 @@ pub fn dist_transform(
         DistTypes::CityBlock => city_block_distance,
     };
 
-    let mut dist_struct = DistTransform {
-        dist_func,
-        vr_diagram,
-    };
-
     iwp::propagate(
-        img,
+        &mut vr_diagram,
         propagation_condition,
         update_func,
         &mut queue,
-        &mut dist_struct,
+        &dist_func,
     );
 
-    return get_final_dist_img(img.width(), img.height(), &mut dist_struct);
+    return get_final_dist_img(img.width(), img.height(), &mut vr_diagram, &dist_func);
+}
+
+pub fn dist_transform_parallel(
+    img: &mut image::ImageBuffer<Luma<u8>, Vec<u8>>,
+    dist_type: DistTypes,
+    num_threads: u32,
+) -> image::ImageBuffer<Luma<u8>, Vec<u8>> {
+    let mut vr_diagram = ImageBuffer::new(img.width(), img.height());
+    let mut queue = get_initial_pixels(img, &mut vr_diagram);
+
+    let dist_func = match dist_type {
+        DistTypes::Euclidean => aprox_euclidean_distance,
+        DistTypes::Chessboard => chessboard_distance,
+        DistTypes::CityBlock => city_block_distance,
+    };
+
+    let mut result = iwp::propagate_parallel(
+        &mut vr_diagram,
+        propagation_condition,
+        update_func,
+        &mut queue,
+        &dist_func,
+        num_threads,
+    );
+
+    return get_final_dist_img(img.width(), img.height(), &mut result, &dist_func);
 }
 
 mod tests {
@@ -168,12 +201,12 @@ mod tests {
     */
     #[test]
     fn test_get_initial_pixels() {
-        let mut vr_diagram = HashMap::<(u32, u32), (u32, u32)>::new();
+        let mut vr_diagram = ImageBuffer::new(3, 3);
         let mut img = _gen_same_value_image(3, 3, 0);
 
         img.put_pixel(1, 1, Luma([1]));
 
-        let mut queue = get_initial_pixels(&img, &mut vr_diagram);
+        let queue = get_initial_pixels(&img, &mut vr_diagram);
         let mut expected: Vec<(u32, u32)> = vec![
             (0, 2),
             (2, 1),
@@ -185,12 +218,10 @@ mod tests {
             (0, 0),
         ];
 
-        assert_eq!(queue.sort(), expected.sort());
+        assert_eq!(Vec::from_iter(queue).sort(), expected.sort());
 
-        match vr_diagram.get(&(1, 1)) {
-            Some(fg_pixel_vr) => assert_eq!(*fg_pixel_vr, INF_PIXEL),
-            None => panic!("Test failed: pixel (1,1) not found in vr map"),
-        }
+        let p_value = vr_diagram.get_pixel(1, 1).0[0];
+        assert_eq!(p_value, INF_PIXEL);
     }
 
     #[test]
